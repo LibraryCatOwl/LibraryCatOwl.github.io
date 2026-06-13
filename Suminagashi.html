@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>墨流し — Suminagashi</title>
+<style>
+  /* ─── Reset & Base ─────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --washi:   #F4EFE4;
+    --sumi:    #1C1810;
+    --aged:    #7A6A52;
+    --border:  rgba(90,75,55,0.18);
+    --surface: rgba(244,239,228,0.72);
+    --red:     #8B2020;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: var(--washi);
+    font-family: 'Georgia', 'Times New Roman', serif;
+  }
+
+  /* ─── Canvas fills the screen ──────────────────────────────── */
+  #canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%; height: 100%;
+    display: block;
+    cursor: crosshair;
+    touch-action: none;
+  }
+
+  /* ─── Title overlay ────────────────────────────────────────── */
+  #title-block {
+    position: fixed;
+    top: 36px; left: 42px;
+    z-index: 10;
+    pointer-events: none;
+    mix-blend-mode: multiply;
+  }
+  #title-block h1 {
+    font-size: clamp(22px, 3.2vw, 38px);
+    font-weight: 400;
+    letter-spacing: 0.12em;
+    color: var(--sumi);
+    line-height: 1;
+    font-variant-ligatures: none;
+  }
+  #title-block .subtitle {
+    margin-top: 6px;
+    font-size: clamp(9px, 1.1vw, 12px);
+    letter-spacing: 0.28em;
+    color: var(--aged);
+    text-transform: uppercase;
+    line-height: 1.5;
+  }
+  #title-block .description {
+    margin-top: 14px;
+    font-size: clamp(8px, 0.95vw, 11px);
+    color: var(--aged);
+    letter-spacing: 0.06em;
+    line-height: 1.8;
+    max-width: 220px;
+    opacity: 0.85;
+    transition: opacity 0.6s;
+  }
+  #title-block.hide-desc .description { opacity: 0; }
+
+  /* ─── Seal (朱印) ──────────────────────────────────────────── */
+  #seal {
+    position: fixed;
+    top: 32px; right: 38px;
+    z-index: 10;
+    pointer-events: none;
+    width: 58px; height: 58px;
+    mix-blend-mode: multiply;
+    opacity: 0.82;
+  }
+
+  /* ─── Control bar ──────────────────────────────────────────── */
+  #controls {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 18px;
+    background: var(--surface);
+    backdrop-filter: blur(12px) saturate(0.9);
+    -webkit-backdrop-filter: blur(12px) saturate(0.9);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    box-shadow: 0 2px 18px rgba(0,0,0,0.07);
+    white-space: nowrap;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 96vw;
+  }
+
+  /* ink swatches */
+  .swatch-group {
+    display: grid;
+    grid-template-columns: repeat(6, 20px);
+    grid-template-rows: repeat(2, 20px);
+    gap: 4px;
+    align-items: center;
+  }
+  .swatch {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s;
+    position: relative;
+  }
+  .swatch:hover { transform: scale(1.3); z-index: 5; }
+  .swatch.active { border-color: var(--aged); transform: scale(1.2); }
+
+  /* tooltip on hover */
+  .swatch::after {
+    content: attr(data-name);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(28,24,16,0.82);
+    color: #F4EFE4;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    padding: 3px 6px;
+    border-radius: 2px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .swatch:hover::after { opacity: 1; }
+
+  /* divider */
+  .div { width: 1px; height: 22px; background: var(--border); flex-shrink: 0; }
+
+  /* text buttons */
+  .btn {
+    font-family: inherit;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--aged);
+    background: none;
+    border: 1px solid var(--border);
+    padding: 5px 10px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    white-space: nowrap;
+    border-radius: 1px;
+    line-height: 1.4;
+  }
+  .btn:hover { background: rgba(90,75,55,0.09); color: var(--sumi); }
+  .btn.active { background: rgba(90,75,55,0.15); color: var(--sumi); }
+
+  /* label */
+  .ctrl-label {
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: var(--aged);
+    text-transform: uppercase;
+    opacity: 0.7;
+    margin-right: 2px;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<!-- Title -->
+<div id="title-block">
+  <h1>墨流し</h1>
+  <div class="subtitle">Suminagashi<br>Floating Ink Study</div>
+  <div class="description">
+    墨を水面に落とし、その流れに<br>
+    一瞬を閉じ込める。<br><br>
+    Touch to drop ink.<br>Drag to disturb the water.
+  </div>
+</div>
+
+<!-- Seal SVG (朱印 style) -->
+<svg id="seal" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <!-- outer square border, slightly irregular -->
+  <rect x="5" y="5" width="90" height="90" fill="none" stroke="#8B2020" stroke-width="3.5" rx="1"/>
+  <rect x="9" y="9" width="82" height="82" fill="none" stroke="#8B2020" stroke-width="1.2" rx="0.5"/>
+  <!-- Kanji 墨 simplified strokes as paths -->
+  <g fill="#8B2020" transform="translate(50,50)">
+    <text x="0" y="8" text-anchor="middle" font-size="28" font-family="serif"
+          font-weight="700" letter-spacing="2">墨</text>
+    <text x="0" y="34" text-anchor="middle" font-size="11" font-family="serif"
+          letter-spacing="3">流し</text>
+  </g>
+  <!-- small noise texture overlay via pattern -->
+  <rect x="5" y="5" width="90" height="90" fill="url(#seal-noise)" opacity="0.12"/>
+  <defs>
+    <filter id="rough">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" result="n"/>
+      <feColorMatrix type="saturate" values="0" in="n" result="g"/>
+      <feBlend in="SourceGraphic" in2="g" mode="multiply"/>
+    </filter>
+  </defs>
+  <g filter="url(#rough)" opacity="0.6">
+    <rect x="5" y="5" width="90" height="90" fill="#8B2020" rx="1"/>
+  </g>
+</svg>
+
+<!-- Controls -->
+<div id="controls">
+  <span class="ctrl-label">墨色</span>
+  <div class="swatch-group" id="swatches">
+    <!-- Swatches injected by JS -->
+  </div>
+
+  <div class="div"></div>
+
+  <button class="btn active" id="btn-auto">自動演出 ON</button>
+  <button class="btn" id="btn-wash">洗い流す</button>
+  <button class="btn" id="btn-save">保存 PNG</button>
+  <button class="btn" id="btn-desc">説明 隠す</button>
+</div>
+
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════════════════════
+//  SUMINAGASHI — WebGL Fluid Simulation
+//  A real-time ink-on-water simulation using:
+//    • velocity field   (ping-pong FBO pair)
+//    • dye field        (ping-pong FBO pair)
+//    • advection shader (moves ink/velocity along velocity field)
+//    • splat shader     (injects momentum + color on pointer interaction)
+//    • curl/vorticity   (adds rotational energy, prevents flat diffusion)
+//    • divergence + pressure (simplified Navier-Stokes pressure solve)
+//    • display shader   (render dye onto washi paper background)
+// ═══════════════════════════════════════════════════════════════════
+
+// ─── Ink palette ─────────────────────────────────────────────────
+const INK_PALETTE = [
+  // ── 原有六色 ──────────────────────────────────────────────
+  { name: '黒墨',  hex: '#1C1810', rgb: [0.28, 0.22, 0.14] },
+  { name: '藍墨',  hex: '#1A2B4A', rgb: [0.12, 0.28, 0.62] },
+  { name: '青灰',  hex: '#3A5060', rgb: [0.22, 0.50, 0.68] },
+  { name: '深紅',  hex: '#5C1A1A', rgb: [0.72, 0.14, 0.14] },
+  { name: '苔緑',  hex: '#2A3D28', rgb: [0.18, 0.52, 0.20] },
+  { name: '紫鼠',  hex: '#3A2C3F', rgb: [0.42, 0.22, 0.58] },
+  // ── 暖色系 ────────────────────────────────────────────────
+  { name: '金茶',  hex: '#8B5A14', rgb: [0.68, 0.38, 0.06] },
+  { name: '柿橙',  hex: '#C4501A', rgb: [0.82, 0.30, 0.08] },
+  { name: '赤錆',  hex: '#7A2E1A', rgb: [0.60, 0.16, 0.08] },
+  // ── 冷色系 ────────────────────────────────────────────────
+  { name: '水色',  hex: '#2A7A8C', rgb: [0.10, 0.52, 0.68] },
+  { name: '群青',  hex: '#1A3A7A', rgb: [0.08, 0.20, 0.68] },
+  { name: '鐵紺',  hex: '#1A2040', rgb: [0.10, 0.14, 0.42] },
+];
+
+let activeInk = 0;
+
+// Inject swatches
+const swatchContainer = document.getElementById('swatches');
+INK_PALETTE.forEach((ink, i) => {
+  const s = document.createElement('div');
+  s.className = 'swatch' + (i === 0 ? ' active' : '');
+  s.style.background = ink.hex;
+  s.setAttribute('data-name', ink.name);
+  s.addEventListener('click', () => {
+    document.querySelectorAll('.swatch').forEach(e => e.classList.remove('active'));
+    s.classList.add('active');
+    activeInk = i;
+  });
+  swatchContainer.appendChild(s);
+});
+
+// ─── Canvas + WebGL init ──────────────────────────────────────────
+const canvas = document.getElementById('canvas');
+const gl = canvas.getContext('webgl', {
+  antialias: false,
+  alpha: false,
+  preserveDrawingBuffer: true, // needed for PNG export
+});
+if (!gl) { alert('WebGL not supported'); }
+
+// Extensions
+const ext = {
+  float: gl.getExtension('OES_texture_float'),
+  floatLinear: gl.getExtension('OES_texture_float_linear'),
+  half: gl.getExtension('OES_texture_half_float'),
+  halfLinear: gl.getExtension('OES_texture_half_float_linear'),
+};
+
+// Use half-float if available for better mobile compat
+const FLOAT_TYPE = ext.half
+  ? ext.half.HALF_FLOAT_OES
+  : (ext.float ? gl.FLOAT : null);
+
+// Simulation resolution
+// 漩渦不緊密 → sim 解析度提高，細節更豐富
+const SIM_SCALE = 0.4;    // was 0.25
+const DYE_SCALE = 0.75;   // was 0.5
+
+let simW, simH, dyeW, dyeH, dispW, dispH;
+
+// ─── Shader source strings ────────────────────────────────────────
+
+// Shared vertex shader (full-screen quad)
+const VS = `
+  precision highp float;
+  attribute vec2 a_position;
+  varying vec2 v_uv;
+  void main() {
+    v_uv = a_position * 0.5 + 0.5;
+    gl_Position = vec4(a_position, 0.0, 1.0);
+  }
+`;
+
+// ── Advection shader ────────────────────────────────────────────
+// Moves the quantity (velocity or dye) along the velocity field.
+// Uses bilinear interpolation (manual, since half-float linear
+// may not be guaranteed on all devices).
+const ADVECT_FS = `
+  precision highp float;
+  uniform sampler2D u_velocity;  // velocity field
+  uniform sampler2D u_source;    // quantity to advect
+  uniform vec2 u_texelVelocity;  // 1/simSize
+  uniform vec2 u_texelSource;    // 1/sourceSize
+  uniform float u_dt;
+  uniform float u_dissipation;   // decay factor (<1 causes fade)
+  varying vec2 v_uv;
+
+  // Bilinear texture sample
+  vec4 bilerp(sampler2D tex, vec2 uv, vec2 texel) {
+    vec2 st = uv / texel - 0.5;
+    vec2 iuv = floor(st);
+    vec2 fuv = fract(st);
+    vec4 a = texture2D(tex, (iuv + vec2(0.5, 0.5)) * texel);
+    vec4 b = texture2D(tex, (iuv + vec2(1.5, 0.5)) * texel);
+    vec4 c = texture2D(tex, (iuv + vec2(0.5, 1.5)) * texel);
+    vec4 d = texture2D(tex, (iuv + vec2(1.5, 1.5)) * texel);
+    return mix(mix(a, b, fuv.x), mix(c, d, fuv.x), fuv.y);
+  }
+
+  void main() {
+    // Look up velocity at this pixel
+    vec2 vel = texture2D(u_velocity, v_uv).xy;
+    // Trace back along velocity
+    vec2 prev = v_uv - vel * u_dt * u_texelVelocity;
+    // Sample source at previous position
+    gl_FragColor = u_dissipation * bilerp(u_source, prev, u_texelSource);
+  }
+`;
+
+// ── Curl / Vorticity shader ──────────────────────────────────────
+// Computes the scalar curl (z-component of ∇×v) of the 2D velocity field.
+// Curl gives us the rotation energy at each point.
+const CURL_FS = `
+  precision highp float;
+  uniform sampler2D u_velocity;
+  uniform vec2 u_texel;
+  varying vec2 v_uv;
+  void main() {
+    float L = texture2D(u_velocity, v_uv - vec2(u_texel.x, 0.0)).y;
+    float R = texture2D(u_velocity, v_uv + vec2(u_texel.x, 0.0)).y;
+    float T = texture2D(u_velocity, v_uv + vec2(0.0, u_texel.y)).x;
+    float B = texture2D(u_velocity, v_uv - vec2(0.0, u_texel.y)).x;
+    float curl = 0.5 * ((R - L) - (T - B));
+    gl_FragColor = vec4(curl, 0.0, 0.0, 1.0);
+  }
+`;
+
+// ── Vorticity confinement shader ─────────────────────────────────
+// Amplifies existing curl, re-injecting rotational energy to prevent
+// numeric dissipation from flattening the fluid. This gives ink that
+// characteristic swirling, organic motion.
+const VORTICITY_FS = `
+  precision highp float;
+  uniform sampler2D u_velocity;
+  uniform sampler2D u_curl;
+  uniform vec2 u_texel;
+  uniform float u_curl_strength;
+  uniform float u_dt;
+  varying vec2 v_uv;
+  void main() {
+    float L = texture2D(u_curl, v_uv - vec2(u_texel.x, 0.0)).x;
+    float R = texture2D(u_curl, v_uv + vec2(u_texel.x, 0.0)).x;
+    float T = texture2D(u_curl, v_uv + vec2(0.0, u_texel.y)).x;
+    float B = texture2D(u_curl, v_uv - vec2(0.0, u_texel.y)).x;
+    float C = texture2D(u_curl, v_uv).x;
+    // Gradient of |curl| (points toward regions of high rotation)
+    vec2 force = vec2(abs(T) - abs(B), abs(R) - abs(L));
+    float len = max(length(force), 0.0001);
+    force = force / len * C * u_curl_strength;
+    vec2 vel = texture2D(u_velocity, v_uv).xy;
+    gl_FragColor = vec4(vel + force * u_dt, 0.0, 1.0);
+  }
+`;
+
+// ── Divergence shader ────────────────────────────────────────────
+// Computes ∇·v (divergence) — how much fluid is "piling up" at each cell.
+// For incompressible flow, divergence should be zero; we use it to
+// set up the pressure Poisson equation.
+const DIVERGENCE_FS = `
+  precision highp float;
+  uniform sampler2D u_velocity;
+  uniform vec2 u_texel;
+  varying vec2 v_uv;
+  void main() {
+    float L = texture2D(u_velocity, v_uv - vec2(u_texel.x, 0.0)).x;
+    float R = texture2D(u_velocity, v_uv + vec2(u_texel.x, 0.0)).x;
+    float T = texture2D(u_velocity, v_uv + vec2(0.0, u_texel.y)).y;
+    float B = texture2D(u_velocity, v_uv - vec2(0.0, u_texel.y)).y;
+    float div = 0.5 * (R - L + T - B);
+    gl_FragColor = vec4(div, 0.0, 0.0, 1.0);
+  }
+`;
+
+// ── Pressure (Jacobi iteration) shader ───────────────────────────
+// Solves the Poisson equation: ∇²P = ∇·v
+// Each pass is one Jacobi iteration; we run ~20 passes.
+const PRESSURE_FS = `
+  precision highp float;
+  uniform sampler2D u_pressure;
+  uniform sampler2D u_divergence;
+  uniform vec2 u_texel;
+  varying vec2 v_uv;
+  void main() {
+    float L = texture2D(u_pressure, v_uv - vec2(u_texel.x, 0.0)).x;
+    float R = texture2D(u_pressure, v_uv + vec2(u_texel.x, 0.0)).x;
+    float T = texture2D(u_pressure, v_uv + vec2(0.0, u_texel.y)).x;
+    float B = texture2D(u_pressure, v_uv - vec2(0.0, u_texel.y)).x;
+    float div = texture2D(u_divergence, v_uv).x;
+    gl_FragColor = vec4((L + R + T + B - div) * 0.25, 0.0, 0.0, 1.0);
+  }
+`;
+
+// ── Pressure gradient subtraction shader ────────────────────────
+// Subtracts the pressure gradient from velocity to enforce
+// incompressibility (divergence-free velocity field).
+const GRADIENT_FS = `
+  precision highp float;
+  uniform sampler2D u_velocity;
+  uniform sampler2D u_pressure;
+  uniform vec2 u_texel;
+  varying vec2 v_uv;
+  void main() {
+    float L = texture2D(u_pressure, v_uv - vec2(u_texel.x, 0.0)).x;
+    float R = texture2D(u_pressure, v_uv + vec2(u_texel.x, 0.0)).x;
+    float T = texture2D(u_pressure, v_uv + vec2(0.0, u_texel.y)).x;
+    float B = texture2D(u_pressure, v_uv - vec2(0.0, u_texel.y)).x;
+    vec2 vel = texture2D(u_velocity, v_uv).xy;
+    vel -= 0.5 * vec2(R - L, T - B);
+    gl_FragColor = vec4(vel, 0.0, 1.0);
+  }
+`;
+
+// ── Splat shader ─────────────────────────────────────────────────
+// Injects a Gaussian blob of velocity (momentum) and/or dye (ink color)
+// at the pointer position.
+//
+// Key technique: domain warping — before computing distance, we displace
+// the sample coordinate with layered noise. This breaks the perfect
+// circular symmetry of the Gaussian, producing ragged, torn-paper edges
+// that look like real ink bleeding into wet washi fibers.
+// The outer boundary gets stronger warping than the center, so the
+// core of the drop is dense and the edges fracture organically.
+const SPLAT_FS = `
+  precision highp float;
+  uniform sampler2D u_target;
+  uniform vec2 u_point;       // normalized [0,1] coords
+  uniform vec3 u_color;       // rgb to add
+  uniform float u_radius;     // splat radius (in UV space)
+  uniform float u_aspect;     // canvas aspect ratio
+  uniform float u_seed;       // per-splat random seed for unique shapes
+  varying vec2 v_uv;
+
+  // ── Noise helpers ──────────────────────────────────────────
+  float hash2(vec2 p) {
+    p = fract(p * vec2(127.1 + u_seed, 311.7 + u_seed * 0.3));
+    p += dot(p, p + 19.19);
+    return fract(p.x * p.y);
+  }
+  float noise2(vec2 p) {
+    vec2 i = floor(p); vec2 f = fract(p);
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash2(i), hash2(i+vec2(1,0)), u.x),
+               mix(hash2(i+vec2(0,1)), hash2(i+vec2(1,1)), u.x), u.y);
+  }
+  // Two-octave fbm for domain warp
+  vec2 fbm2(vec2 p) {
+    vec2 v = vec2(0.0);
+    float a = 0.5;
+    for (int i = 0; i < 3; i++) {
+      v += a * vec2(noise2(p), noise2(p + vec2(3.7, 1.3)));
+      p *= 2.2; a *= 0.5;
+    }
+    return v;
+  }
+
+  void main() {
+    vec2 p = v_uv - u_point;
+    p.x *= u_aspect;
+
+    float dist = length(p);
+    float norm = dist / max(sqrt(u_radius), 0.0001);
+
+    // Domain warp: displace sample coords by noise, scaled by distance.
+    // Near center: minimal warp → dense core.
+    // Near edge: strong warp → jagged, fractured boundary.
+    float warpStr = smoothstep(0.1, 1.0, norm) * sqrt(u_radius) * 3.2;
+    vec2 warpedP = p + fbm2(p * 18.0 + u_seed) * warpStr - warpStr * 0.5;
+    float wd = dot(warpedP, warpedP);
+
+    // Main Gaussian using warped distance
+    float splat = exp(-wd / u_radius);
+
+    // Additional high-frequency edge roughness — small spiky protrusions
+    float edge = smoothstep(0.3, 1.2, norm);
+    float spike = noise2(p * 42.0 + u_seed + 5.0) * 0.4;
+    splat = mix(splat, splat * (1.0 + spike * 0.6), edge);
+    splat = clamp(splat, 0.0, 1.0);
+
+    vec3 current = texture2D(u_target, v_uv).rgb;
+    gl_FragColor = vec4(current + u_color * splat, 1.0);
+  }
+`;
+
+// ── Display shader ───────────────────────────────────────────────
+// Renders the dye buffer onto a procedurally generated washi (和紙)
+// paper background.
+//
+// Ink compositing strategy:
+//  • Beer-Lambert absorption with high density multiplier → deep, dark core
+//  • Gamma curve on absorption → sharp density falloff at edges
+//  • Ink hue is desaturated slightly toward the dark end (real sumi ink)
+//  • Where multiple ink colors overlap, the blend darkens multiplicatively
+//  • Paper fiber noise slightly bleeds through thin ink (show-through)
+const DISPLAY_FS = `
+  precision highp float;
+  uniform sampler2D u_dye;
+  uniform vec2 u_resolution;
+  uniform float u_time;
+  varying vec2 v_uv;
+
+  // ── Noise helpers ──────────────────────────────────────
+  float hash(vec2 p) {
+    p = fract(p * vec2(127.1, 311.7));
+    p += dot(p, p + 19.19);
+    return fract(p.x * p.y);
+  }
+  float noise(vec2 p) {
+    vec2 i = floor(p); vec2 f = fract(p);
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(i), hash(i+vec2(1,0)), u.x),
+               mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), u.x), u.y);
+  }
+  float fbm(vec2 p) {
+    float v = 0.0; float a = 0.5;
+    for (int i = 0; i < 5; i++) { v += a * noise(p); p *= 2.1; a *= 0.5; }
+    return v;
+  }
+
+  void main() {
+    vec2 px = v_uv * u_resolution;
+
+    // ── Washi paper ────────────────────────────────────────
+    vec3 paper = vec3(0.958, 0.944, 0.912);
+
+    // Longitudinal fiber (horizontal and vertical)
+    float fx = fbm(px * vec2(0.007, 0.28));
+    float fy = fbm(px * vec2(0.28, 0.007) + 40.0);
+    paper -= vec3(fx * 0.045 + fy * 0.032);
+
+    // Fine surface grain / tooth
+    float grain = noise(px * 1.1) * noise(px * 2.4 + 7.0);
+    paper -= vec3(grain * 0.022);
+
+    // Warm-cool patch variation
+    float warmth = fbm(px * 0.0028);
+    paper += vec3(warmth*0.016, warmth*0.010, -warmth*0.007);
+
+    // Vignette
+    vec2 vc = (v_uv - 0.5) * 2.0;
+    float vign = pow(max(1.0 - dot(vc*0.58, vc*0.52), 0.0), 0.32);
+    paper *= 0.87 + vign * 0.13;
+
+    // ── Ink compositing ────────────────────────────────────
+    vec3 dye = texture2D(u_dye, v_uv).rgb;
+    float inkMag = length(dye);
+
+    // 問題②顏色太淡：
+    // density_scale 6.5→12.0，讓同樣濃度顯色深很多
+    // pow gamma 改為 1/2.2（更激進的 mid-tone 提升）
+    // 結果：薄墨就有顏色，厚墨非常深黑
+    float density  = inkMag * 12.0;
+    float rawAbs   = 1.0 - exp(-density);
+    float absorption = pow(rawAbs, 1.0 / 2.2);
+
+    // Ink hue: 邊緣保留色相，核心壓向深黑（真實墨汁感）
+    vec3 inkDir   = dye / max(inkMag, 0.001);
+    float coreness = pow(rawAbs, 0.45);  // 更快地壓黑
+    vec3 inkColor  = mix(inkDir * 0.72, inkDir * 0.08, coreness);
+
+    // Multiply blend
+    vec3 inkOnPaper = inkColor * paper;
+    vec3 col = mix(paper, inkOnPaper, absorption);
+
+    // Paper grain shows subtly through thin ink
+    col = mix(col, col * (0.93 + grain * 0.07), smoothstep(0.0, 0.4, absorption) * 0.35);
+
+    // Micro-edge fiber bleed
+    float edgeZone  = smoothstep(0.05, 0.28, absorption) * (1.0 - smoothstep(0.55, 0.95, absorption));
+    float fiberBleed = noise(px * 4.5) * 0.04;
+    col -= vec3(fiberBleed * edgeZone);
+
+    gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+  }
+`;
+
+// ─── Compile shaders & link programs ─────────────────────────────
+function compileShader(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
+    console.error('Shader error:', gl.getShaderInfoLog(s), src.slice(0, 200));
+  return s;
+}
+
+function createProgram(fsSrc) {
+  const p = gl.createProgram();
+  gl.attachShader(p, compileShader(gl.VERTEX_SHADER, VS));
+  gl.attachShader(p, compileShader(gl.FRAGMENT_SHADER, fsSrc));
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS))
+    console.error('Program error:', gl.getProgramInfoLog(p));
+  return p;
+}
+
+const prog = {
+  advect:     createProgram(ADVECT_FS),
+  curl:       createProgram(CURL_FS),
+  vorticity:  createProgram(VORTICITY_FS),
+  divergence: createProgram(DIVERGENCE_FS),
+  pressure:   createProgram(PRESSURE_FS),
+  gradient:   createProgram(GRADIENT_FS),
+  splat:      createProgram(SPLAT_FS),
+  display:    createProgram(DISPLAY_FS),
+};
+
+// Uniform location cache
+const locs = {};
+Object.keys(prog).forEach(k => {
+  locs[k] = {};
+  const p = prog[k];
+  const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+  for (let i = 0; i < n; i++) {
+    const info = gl.getActiveUniform(p, i);
+    locs[k][info.name] = gl.getUniformLocation(p, info.name);
+  }
+});
+
+// ─── Full-screen quad ─────────────────────────────────────────────
+const quadBuf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+gl.bufferData(gl.ARRAY_BUFFER,
+  new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+
+function bindQuad(prog) {
+  gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+  const loc = gl.getAttribLocation(prog, 'a_position');
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+}
+
+function drawQuad() {
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+}
+
+// ─── Framebuffer / texture helpers ───────────────────────────────
+function createTexture(w, h, type, filter) {
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, type, null);
+  return tex;
+}
+
+function createFBO(w, h, type) {
+  const filter = (type === gl.FLOAT && ext.floatLinear) ||
+                 (type === ext.half?.HALF_FLOAT_OES && ext.halfLinear)
+                 ? gl.LINEAR : gl.NEAREST;
+  const tex = createTexture(w, h, type, filter);
+  const fbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0,
+                          gl.TEXTURE_2D, tex, 0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  return { fbo, tex, w, h };
+}
+
+// Ping-pong buffer: two FBOs we swap each step
+function createDoubleFBO(w, h, type) {
+  return {
+    read:  createFBO(w, h, type),
+    write: createFBO(w, h, type),
+    swap() { [this.read, this.write] = [this.write, this.read]; },
+  };
+}
+
+// ─── Buffer declarations (initialized in resize()) ───────────────
+// velocity buffer  — stores (vx, vy) at each sim cell
+// dye buffer       — stores (r, g, b) ink color at each dye cell
+// curl buffer      — scalar curl at sim resolution
+// divergence buffer— scalar divergence at sim resolution
+// pressure buffer  — scalar pressure at sim resolution
+let velocity, dye, curlFBO, divergenceFBO, pressure;
+
+let floatType;   // resolved texture type
+
+function initBuffers() {
+  floatType = FLOAT_TYPE || gl.UNSIGNED_BYTE;
+  if (velocity) {
+    // Destroy old (WebGL GC handles it, but we reassign)
+  }
+  velocity    = createDoubleFBO(simW, simH, floatType);
+  dye         = createDoubleFBO(dyeW, dyeH, floatType);
+  curlFBO     = createFBO(simW, simH, floatType);
+  divergenceFBO = createFBO(simW, simH, floatType);
+  pressure    = createDoubleFBO(simW, simH, floatType);
+}
+
+// ─── Resize handler ──────────────────────────────────────────────
+function resize() {
+  const dpr = Math.min(devicePixelRatio, 2);
+  dispW = Math.floor(window.innerWidth  * dpr);
+  dispH = Math.floor(window.innerHeight * dpr);
+  simW  = Math.floor(dispW * SIM_SCALE);
+  simH  = Math.floor(dispH * SIM_SCALE);
+  dyeW  = Math.floor(dispW * DYE_SCALE);
+  dyeH  = Math.floor(dispH * DYE_SCALE);
+  canvas.width  = dispW;
+  canvas.height = dispH;
+  canvas.style.width  = window.innerWidth  + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+  initBuffers();
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ─── Render helpers ──────────────────────────────────────────────
+function setProgram(key) {
+  gl.useProgram(prog[key]);
+  bindQuad(prog[key]);
+}
+
+function setUniform1i(key, name, v)        { gl.uniform1i(locs[key][name], v); }
+function setUniform1f(key, name, v)        { gl.uniform1f(locs[key][name], v); }
+function setUniform2f(key, name, x, y)    { gl.uniform2f(locs[key][name], x, y); }
+function setUniform3f(key, name, x, y, z) { gl.uniform3f(locs[key][name], x, y, z); }
+
+function bindTexture(unit, tex) {
+  gl.activeTexture(gl.TEXTURE0 + unit);
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+}
+
+function renderToFBO(fbo) {
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  drawQuad();
+}
+
+// ─── Simulation step functions ───────────────────────────────────
+
+// Advect a quantity (velocity or dye) along the velocity field
+function advect(src, vel, dst, dissipation) {
+  setProgram('advect');
+  bindTexture(0, vel.tex);
+  bindTexture(1, src.tex);
+  setUniform1i('advect', 'u_velocity', 0);
+  setUniform1i('advect', 'u_source', 1);
+  setUniform2f('advect', 'u_texelVelocity', 1/vel.w, 1/vel.h);
+  setUniform2f('advect', 'u_texelSource', 1/src.w, 1/src.h);
+  setUniform1f('advect', 'u_dt', 0.016);
+  setUniform1f('advect', 'u_dissipation', dissipation);
+  gl.viewport(0, 0, dst.w, dst.h);
+  renderToFBO(dst.fbo);
+}
+
+// Compute curl of velocity
+function computeCurl() {
+  setProgram('curl');
+  bindTexture(0, velocity.read.tex);
+  setUniform1i('curl', 'u_velocity', 0);
+  setUniform2f('curl', 'u_texel', 1/simW, 1/simH);
+  gl.viewport(0, 0, simW, simH);
+  renderToFBO(curlFBO.fbo);
+}
+
+// Apply vorticity confinement
+function applyVorticity(strength) {
+  setProgram('vorticity');
+  bindTexture(0, velocity.read.tex);
+  bindTexture(1, curlFBO.tex);
+  setUniform1i('vorticity', 'u_velocity', 0);
+  setUniform1i('vorticity', 'u_curl', 1);
+  setUniform2f('vorticity', 'u_texel', 1/simW, 1/simH);
+  setUniform1f('vorticity', 'u_curl_strength', strength);
+  setUniform1f('vorticity', 'u_dt', 0.016);
+  gl.viewport(0, 0, simW, simH);
+  renderToFBO(velocity.write.fbo);
+  velocity.swap();
+}
+
+// Compute divergence
+function computeDivergence() {
+  setProgram('divergence');
+  bindTexture(0, velocity.read.tex);
+  setUniform1i('divergence', 'u_velocity', 0);
+  setUniform2f('divergence', 'u_texel', 1/simW, 1/simH);
+  gl.viewport(0, 0, simW, simH);
+  renderToFBO(divergenceFBO.fbo);
+}
+
+// Pressure solve (N Jacobi iterations)
+function solvePressure(iters) {
+  // Clear pressure
+  gl.bindFramebuffer(gl.FRAMEBUFFER, pressure.read.fbo);
+  gl.clearColor(0,0,0,0);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+
+  setProgram('pressure');
+  setUniform1i('pressure', 'u_divergence', 1);
+  bindTexture(1, divergenceFBO.tex);
+  setUniform2f('pressure', 'u_texel', 1/simW, 1/simH);
+  for (let i = 0; i < iters; i++) {
+    bindTexture(0, pressure.read.tex);
+    setUniform1i('pressure', 'u_pressure', 0);
+    gl.viewport(0, 0, simW, simH);
+    renderToFBO(pressure.write.fbo);
+    pressure.swap();
+  }
+}
+
+// Subtract pressure gradient from velocity (make divergence-free)
+function subtractGradient() {
+  setProgram('gradient');
+  bindTexture(0, velocity.read.tex);
+  bindTexture(1, pressure.read.tex);
+  setUniform1i('gradient', 'u_velocity', 0);
+  setUniform1i('gradient', 'u_pressure', 1);
+  setUniform2f('gradient', 'u_texel', 1/simW, 1/simH);
+  gl.viewport(0, 0, simW, simH);
+  renderToFBO(velocity.write.fbo);
+  velocity.swap();
+}
+
+// Splat: inject a circular blob of color+velocity at pointer
+function splat(x, y, dx, dy, color, radius) {
+  const aspect = dispW / dispH;
+  const seed = Math.random() * 100;
+
+  // Inject velocity (no domain warp needed for velocity, just Gaussian)
+  setProgram('splat');
+  bindTexture(0, velocity.read.tex);
+  setUniform1i('splat', 'u_target', 0);
+  setUniform2f('splat', 'u_point', x, y);
+  setUniform3f('splat', 'u_color', dx, dy, 0);
+  setUniform1f('splat', 'u_radius', radius * radius * 0.08);
+  setUniform1f('splat', 'u_aspect', aspect);
+  setUniform1f('splat', 'u_seed', seed);
+  gl.viewport(0, 0, simW, simH);
+  renderToFBO(velocity.write.fbo);
+  velocity.swap();
+
+  // Inject dye (ink color) — larger radius, domain-warped edges
+  bindTexture(0, dye.read.tex);
+  setUniform1i('splat', 'u_target', 0);
+  // 問題②④ color × 1.8 boost：讓每次注入的墨量更足，不會一散就淡
+  const boostedColor = color.map(c => c * 1.8);
+  setUniform3f('splat', 'u_color', ...boostedColor);
+  setUniform1f('splat', 'u_radius', radius * radius * 0.14);
+  setUniform1f('splat', 'u_seed', seed + 13.7);
+  gl.viewport(0, 0, dyeW, dyeH);
+  renderToFBO(dye.write.fbo);
+  dye.swap();
+}
+
+// Display: render dye to screen with paper background
+function display() {
+  setProgram('display');
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0, 0, dispW, dispH);
+  bindTexture(0, dye.read.tex);
+  setUniform1i('display', 'u_dye', 0);
+  setUniform2f('display', 'u_resolution', dispW, dispH);
+  setUniform1f('display', 'u_time', performance.now() * 0.001);
+  drawQuad();
+}
+
+// ─── Main simulation loop ─────────────────────────────────────────
+const DT = 0.016;
+
+function step() {
+  // 1. Advect velocity
+  // 問題③墨被沖走 → velocity dissipation 降低（0.999→0.985）
+  // 速度衰減更快，舊動量不會持續把新墨推走
+  advect(velocity.read, velocity.read, velocity.write, 0.985);
+  velocity.swap();
+
+  // 2. Curl + vorticity confinement
+  // 問題①漩渦不緊密 → strength 55→90，更強的旋轉能量補充
+  computeCurl();
+  applyVorticity(90);
+
+  // 3. Pressure projection (incompressibility)
+  computeDivergence();
+  solvePressure(30);  // 多幾次 iteration 讓流場更乾淨
+  subtractGradient();
+
+  // 4. Advect dye
+  // 問題④墨散太快 → dissipation 接近 1.0，墨幾乎不自然消退
+  advect(dye.read, velocity.read, dye.write, 0.99997);
+  dye.swap();
+
+  // 5. Render
+  display();
+}
+
+// ─── Pointer interaction ──────────────────────────────────────────
+const pointer = {
+  x: 0.5, y: 0.5,
+  dx: 0, dy: 0,
+  down: false,
+  moved: false,
+};
+
+let lastSplatTime = 0;
+
+function getUV(clientX, clientY) {
+  return {
+    x: clientX / window.innerWidth,
+    y: 1.0 - clientY / window.innerHeight,
+  };
+}
+
+function splatPointer(x, y, dx, dy, isClick) {
+  const color = INK_PALETTE[activeInk].rgb;
+  const speed = Math.sqrt(dx*dx + dy*dy);
+
+  // 問題④墨散太快 → radius 加大，color 注入 2× boost
+  const radius = isClick ? 0.09 + Math.random() * 0.025 : 0.038 + Math.random() * 0.012;
+
+  // 問題③墨被沖走 → 點擊時 velocity impulse 極小（0.0015→0.0003）
+  // 只是讓墨有微微擾動，不要造成大推力把墨沖散
+  const scale = isClick
+    ? 0.0003
+    : Math.min(speed * 14 + 0.001, 0.7);
+
+  const jitter = () => (Math.random() - 0.5) * 0.001;
+  splat(x + jitter(), y + jitter(), dx * scale, dy * scale, color, radius);
+}
+
+canvas.addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  pointer.down = true;
+  pointer.moved = false;
+  const uv = getUV(e.clientX, e.clientY);
+  pointer.x = uv.x;
+  pointer.y = uv.y;
+  pointer.dx = 0; pointer.dy = 0;
+  splatPointer(uv.x, uv.y, 0, 0, true);
+});
+
+canvas.addEventListener('mousemove', e => {
+  const uv = getUV(e.clientX, e.clientY);
+  if (pointer.down) {
+    pointer.dx = uv.x - pointer.x;
+    pointer.dy = uv.y - pointer.y;
+    pointer.x = uv.x;
+    pointer.y = uv.y;
+    pointer.moved = true;
+    splatPointer(uv.x, uv.y, pointer.dx, pointer.dy, false);
+  }
+  pointer.x = uv.x;
+  pointer.y = uv.y;
+});
+
+canvas.addEventListener('mouseup', () => { pointer.down = false; });
+
+// Touch events
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  const uv = getUV(t.clientX, t.clientY);
+  pointer.down = true;
+  pointer.x = uv.x;
+  pointer.y = uv.y;
+  pointer.dx = 0; pointer.dy = 0;
+  splatPointer(uv.x, uv.y, 0, 0, true);
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  const uv = getUV(t.clientX, t.clientY);
+  pointer.dx = uv.x - pointer.x;
+  pointer.dy = uv.y - pointer.y;
+  pointer.x = uv.x;
+  pointer.y = uv.y;
+  splatPointer(uv.x, uv.y, pointer.dx, pointer.dy, false);
+}, { passive: false });
+
+canvas.addEventListener('touchend', () => { pointer.down = false; });
+
+// ─── Auto-performance / demo mode ─────────────────────────────────
+let autoMode = true;
+let autoTimer = 0;
+let autoDropInterval = 4500 + Math.random() * 3000;
+let autoLastTime = 0;
+
+// Slow drifting background current
+let driftAngle = Math.random() * Math.PI * 2;
+let driftTimer = 0;
+
+function autoUpdate(now) {
+  if (!autoMode) return;
+  const dt = now - autoLastTime;
+  autoLastTime = now;
+
+  // Slow drift / micro current
+  driftTimer += dt;
+  if (driftTimer > 3000) {
+    driftTimer = 0;
+    driftAngle += (Math.random() - 0.5) * 0.8;
+  }
+  // Very subtle ambient flow
+  if (Math.random() < 0.006) {
+    const cx = 0.2 + Math.random() * 0.6;
+    const cy = 0.2 + Math.random() * 0.6;
+    const force = 0.00008;
+    splat(cx, cy,
+      Math.cos(driftAngle) * force,
+      Math.sin(driftAngle) * force,
+      [0, 0, 0], 0.12);
+  }
+
+  // Occasional auto ink drop
+  autoTimer += dt;
+  if (autoTimer > autoDropInterval) {
+    autoTimer = 0;
+    autoDropInterval = 4000 + Math.random() * 5000;
+    // Pick random ink color (bias toward currently selected)
+    const inkIdx = Math.random() < 0.5
+      ? activeInk
+      : Math.floor(Math.random() * INK_PALETTE.length);
+    const color = INK_PALETTE[inkIdx].rgb;
+    const x = 0.15 + Math.random() * 0.7;
+    const y = 0.15 + Math.random() * 0.7;
+    // Drop with tiny random impulse
+    splat(x, y,
+      (Math.random()-0.5)*0.0006,
+      (Math.random()-0.5)*0.0006,
+      color, 0.055 + Math.random()*0.03);
+  }
+}
+
+// ─── Wash mode: inject strong turbulent flow to clear ink ─────────
+let washing = false;
+let washTimer = 0;
+const WASH_DURATION = 4000;
+
+function startWash() {
+  washing = true;
+  washTimer = 0;
+}
+
+function washUpdate(dt) {
+  if (!washing) return;
+  washTimer += dt;
+  // Inject random turbulent velocity splats, no dye
+  for (let i = 0; i < 3; i++) {
+    const x = Math.random();
+    const y = Math.random();
+    const angle = Math.random() * Math.PI * 2;
+    const str = 0.004;
+    splat(x, y, Math.cos(angle)*str, Math.sin(angle)*str, [0,0,0], 0.08);
+  }
+  // Accelerate dye dissipation — we achieve this by setting a very
+  // high splat of [0,0,0] (clear ink) — actually we just rely on
+  // the high velocity to disperse. After wash, dissipation fades it.
+  if (washTimer > WASH_DURATION) {
+    washing = false;
+  }
+}
+
+// ─── Control bar wiring ───────────────────────────────────────────
+const btnAuto = document.getElementById('btn-auto');
+const btnWash = document.getElementById('btn-wash');
+const btnSave = document.getElementById('btn-save');
+const btnDesc = document.getElementById('btn-desc');
+const titleBlock = document.getElementById('title-block');
+
+btnAuto.addEventListener('click', () => {
+  autoMode = !autoMode;
+  autoLastTime = performance.now();
+  btnAuto.textContent = autoMode ? '自動演出 ON' : '自動演出 OFF';
+  btnAuto.classList.toggle('active', autoMode);
+});
+
+btnWash.addEventListener('click', startWash);
+
+btnSave.addEventListener('click', () => {
+  // Render one more frame to ensure preserveDrawingBuffer is fresh
+  step();
+  const link = document.createElement('a');
+  link.download = `suminagashi_${Date.now()}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+});
+
+let descVisible = true;
+btnDesc.addEventListener('click', () => {
+  descVisible = !descVisible;
+  titleBlock.classList.toggle('hide-desc', !descVisible);
+  btnDesc.textContent = descVisible ? '説明 隠す' : '説明 表示';
+  btnDesc.classList.toggle('active', !descVisible);
+});
+
+// ─── Main animation loop ──────────────────────────────────────────
+let lastTime = 0;
+let washLastTime = 0;
+
+function loop(now) {
+  requestAnimationFrame(loop);
+
+  const dt = Math.min(now - lastTime, 50);
+  lastTime = now;
+
+  washUpdate(dt);
+  autoUpdate(now);
+  step();
+}
+
+// Initial ink drops to greet the viewer
+function initialDrops() {
+  const palette = INK_PALETTE;
+  // Three drops
+  [
+    [0.35, 0.55, 0],
+    [0.60, 0.42, 1],
+    [0.50, 0.65, 3],
+  ].forEach(([x, y, i]) => {
+    splat(x, y, (Math.random()-0.5)*0.0003, (Math.random()-0.5)*0.0003,
+      palette[i].rgb, 0.07 + Math.random()*0.025);
+  });
+}
+
+requestAnimationFrame(t => {
+  lastTime = t;
+  autoLastTime = t;
+  initialDrops();
+  loop(t);
+});
+</script>
+</body>
+</html>
