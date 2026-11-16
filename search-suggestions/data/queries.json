@@ -1,0 +1,210 @@
+{
+  "_note": "Fictional sample query log. Replace with your own aggregated query data.",
+  "trending": [
+    "spicy ramen",
+    "chocolate biscuit sticks",
+    "matcha",
+    "korean sunscreen",
+    "chili oil",
+    "mochi",
+    "tteokbokki",
+    "boba"
+  ],
+  "queries": [
+    {
+      "text": "spicy ramen",
+      "volume": 9100,
+      "conversion": 0.08
+    },
+    {
+      "text": "spicy chicken ramen",
+      "volume": 5200,
+      "conversion": 0.09
+    },
+    {
+      "text": "ramen",
+      "volume": 8800,
+      "conversion": 0.06
+    },
+    {
+      "text": "ramen bowl",
+      "volume": 900,
+      "conversion": 0.05
+    },
+    {
+      "text": "chocolate biscuit sticks",
+      "volume": 3400,
+      "conversion": 0.085
+    },
+    {
+      "text": "strawberry biscuit sticks",
+      "volume": 1600,
+      "conversion": 0.07
+    },
+    {
+      "text": "matcha",
+      "volume": 6900,
+      "conversion": 0.06
+    },
+    {
+      "text": "matcha cookies",
+      "volume": 2300,
+      "conversion": 0.07
+    },
+    {
+      "text": "matcha milk tea",
+      "volume": 2600,
+      "conversion": 0.065
+    },
+    {
+      "text": "matcha wafer",
+      "volume": 3200,
+      "conversion": 0.075
+    },
+    {
+      "text": "mochi",
+      "volume": 5400,
+      "conversion": 0.07
+    },
+    {
+      "text": "chili oil",
+      "volume": 6200,
+      "conversion": 0.095
+    },
+    {
+      "text": "chili crisp",
+      "volume": 3900,
+      "conversion": 0.09
+    },
+    {
+      "text": "hot pot",
+      "volume": 3500,
+      "conversion": 0.06
+    },
+    {
+      "text": "self heating hot pot",
+      "volume": 2100,
+      "conversion": 0.07
+    },
+    {
+      "text": "kimchi",
+      "volume": 4700,
+      "conversion": 0.08
+    },
+    {
+      "text": "tteokbokki",
+      "volume": 2900,
+      "conversion": 0.07
+    },
+    {
+      "text": "seaweed",
+      "volume": 4100,
+      "conversion": 0.085
+    },
+    {
+      "text": "seaweed snack",
+      "volume": 2700,
+      "conversion": 0.09
+    },
+    {
+      "text": "boba",
+      "volume": 4400,
+      "conversion": 0.06
+    },
+    {
+      "text": "brown sugar boba",
+      "volume": 1800,
+      "conversion": 0.07
+    },
+    {
+      "text": "milk tea",
+      "volume": 3600,
+      "conversion": 0.06
+    },
+    {
+      "text": "sunscreen",
+      "volume": 7800,
+      "conversion": 0.075
+    },
+    {
+      "text": "korean sunscreen",
+      "volume": 3100,
+      "conversion": 0.08
+    },
+    {
+      "text": "face mask",
+      "volume": 5200,
+      "conversion": 0.07
+    },
+    {
+      "text": "sheet mask",
+      "volume": 2400,
+      "conversion": 0.075
+    },
+    {
+      "text": "toner",
+      "volume": 3000,
+      "conversion": 0.06
+    },
+    {
+      "text": "concealer",
+      "volume": 1600,
+      "conversion": 0.05
+    },
+    {
+      "text": "shampoo",
+      "volume": 2600,
+      "conversion": 0.05
+    },
+    {
+      "text": "hand cream",
+      "volume": 1400,
+      "conversion": 0.06
+    },
+    {
+      "text": "rice cooker",
+      "volume": 3300,
+      "conversion": 0.045
+    },
+    {
+      "text": "korean snacks",
+      "volume": 4900,
+      "conversion": 0.06
+    },
+    {
+      "text": "japanese snacks",
+      "volume": 4500,
+      "conversion": 0.06
+    },
+    {
+      "text": "ginseng",
+      "volume": 1500,
+      "conversion": 0.05
+    },
+    {
+      "text": "aloe drink",
+      "volume": 1200,
+      "conversion": 0.055
+    },
+    {
+      "text": "skincare",
+      "volume": 3800,
+      "conversion": 0.05
+    },
+    {
+      "text": "hanbit ramen",
+      "volume": 2200,
+      "conversion": 0.09
+    },
+    {
+      "text": "hanbit carbonara",
+      "volume": 1400,
+      "conversion": 0.085
+    },
+    {
+      "text": "gifts",
+      "volume": 2000,
+      "conversion": 0.04
+    }
+  ]
+}
