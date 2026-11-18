@@ -34,6 +34,25 @@ th { text-align: left; color: var(--muted); font-weight: 500; border-bottom: 1px
 td { border-bottom: 1px solid var(--line); padding: 6px 8px; vertical-align: top; }
 .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .sum { min-width: 220px; }
+.posts .topics { min-width: 9em; }
+.posts .unit, .posts .who, .posts td.br { display: none; }
+.chip.sarc { color: var(--fg); border-color: var(--c1); }
+@media (max-width: 640px) {
+  .posts thead { display: none; }
+  .posts, .posts tbody { display: block; }
+  .posts tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .posts td { display: block; border: 0; padding: 0; min-width: 0; }
+  .posts .rank { order: 1; color: var(--muted); }
+  .posts .rank::before { content: "#"; }
+  .posts .likes { order: 2; font-weight: 600; text-align: left; }
+  .posts .unit { display: inline; font-weight: 400; color: var(--muted); }
+  .posts .link { order: 3; margin-left: auto; }
+  .posts td.br { display: block; order: 4; flex-basis: 100%; height: 0; }
+  .posts .st { order: 5; } .posts .who { display: inline; color: var(--muted); }
+  .posts .sar { order: 6; } .posts .sar:empty { display: none; }
+  .posts .sum { order: 7; flex-basis: 100%; min-width: 0; font-size: 14px; }
+  .posts .topics { order: 8; flex-basis: 100%; min-width: 0; font-size: 12px; color: var(--muted); }
+}
 .chip { display: inline-block; white-space: nowrap; padding: 0 6px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
 .chip.support { color: var(--fg); border-color: var(--fg); } .chip.oppose { color: var(--fg); border: 1px dashed var(--fg); }
 .defs { margin-top: 20px; font-size: 13px; color: var(--muted); } .defs dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; } .defs dt { color: var(--fg); } .defs dd { margin: 0; }
