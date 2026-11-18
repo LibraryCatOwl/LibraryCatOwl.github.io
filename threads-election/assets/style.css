@@ -1,0 +1,40 @@
+
+:root { --fg:#1f1e1c; --muted:#6b6a66; --bg:#faf9f6; --panel:#fff; --line:#e6e3dc; --c0:#2f6f8f; --c1:#c9822b; --c2:#7a7a9c; --cm:#bdbab2; --warn:#b4690e; }
+@media (prefers-color-scheme: dark) { :root { --fg:#ecebe7; --muted:#a3a19b; --bg:#1b1b1a; --panel:#242423; --line:#3a3936; --c0:#6fb0cf; --c1:#e3a55a; --c2:#a9a9c9; --cm:#5d5b56; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.6 -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif; }
+.tp { max-width: 1080px; margin: 0 auto; padding: 24px 16px 48px; }
+a { color: var(--c0); }
+.tp-nav { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 12px; }
+.tp-title { font-family: "Songti TC", "Noto Serif TC", serif; font-weight: 400; font-size: 28px; margin: 0; }
+.tp-sub { color: var(--muted); font-size: 13px; }
+.tp-take { font-size: 18px; margin: 16px 0 20px; }
+.tp-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
+.card h3 { margin: 0 0 4px; font-size: 13px; color: var(--muted); font-weight: 500; }
+.card h2 { margin: 0; font-size: 17px; font-weight: 600; }
+.big { font-family: "Songti TC", "Noto Serif TC", serif; font-size: 32px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.note, .desc { font-size: 12px; color: var(--muted); margin: 4px 0 8px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin-top: 12px; }
+.section { margin-top: 12px; }
+.chart { position: relative; min-height: 120px; }
+.chart svg { display: block; overflow: visible; }
+.chart text { font-size: 12px; fill: var(--muted); }
+.chart text.val { fill: var(--fg); font-variant-numeric: tabular-nums; }
+.chart text.lab { fill: var(--fg); }
+.chart .tick line { stroke: var(--line); } .chart .domain { display: none; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.sw.c0 { background: var(--c0); } .sw.c1 { background: var(--c1); } .sw.cm { background: var(--cm); }
+.axisnote { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+.tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 4px 12px rgba(0,0,0,.12); border-radius: 6px; padding: 6px 8px; font-size: 12px; white-space: pre; z-index: 5; }
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--line); padding: 6px 8px; white-space: nowrap; }
+td { border-bottom: 1px solid var(--line); padding: 6px 8px; vertical-align: top; }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sum { min-width: 220px; }
+.chip { display: inline-block; white-space: nowrap; padding: 0 6px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.chip.support { color: var(--fg); border-color: var(--fg); } .chip.oppose { color: var(--fg); border: 1px dashed var(--fg); }
+.defs { margin-top: 20px; font-size: 13px; color: var(--muted); } .defs dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; } .defs dt { color: var(--fg); } .defs dd { margin: 0; }
+.tp-foot { margin-top: 24px; font-size: 12px; color: var(--muted); }
