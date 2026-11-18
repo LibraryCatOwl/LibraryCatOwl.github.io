@@ -65,6 +65,54 @@
       .on('pointerleave', () => { hover.attr('opacity', 0); tip.hide(); });
   }
 
+  const go = (id, f) => { const el = document.getElementById(id); if (el) { el.replaceChildren(); f(el); } };
+  const STZ = { support: '支持', oppose: '反對', neutral: '中立', mixed: '混合', not_mentioned: '未提及' };
+  const reduce = !window.matchMedia || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let active = (location.hash.match(/^#topic=(.+)$/) || [])[1];
+  active = active ? decodeURIComponent(active) : null;
+  if (active && !(D.posts || []).some((p) => p.topics.includes(active))) active = null;
+
+  function setTopic(t, scroll) {
+    active = t || null;
+    history.replaceState(null, '', active ? '#topic=' + encodeURIComponent(active) : location.pathname + location.search);
+    renderPosts();
+    if (D.topics) go('topics', stacked);
+    if (scroll && active) document.getElementById('posts').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  }
+  const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+  function renderPosts() {
+    const body = document.getElementById('posts-body'); if (!body || !D.posts) return;
+    const list = active ? D.posts.filter((p) => p.topics.includes(active)) : D.posts;
+    const shown = list.slice(0, D.top_n);
+    body.replaceChildren();
+    shown.forEach((p, i) => {
+      const tr = mk('tr');
+      tr.append(mk('td', 'rank num', String(i + 1)));
+      const lk = mk('td', 'likes num', fmt(p.likes)); lk.append(mk('span', 'unit', ' 讚')); tr.append(lk);
+      const tp = mk('td', 'topics');
+      p.topics.forEach((t) => { const b = mk('button', 'topic-btn' + (t === active ? ' active' : ''), t); b.type = 'button';
+        b.addEventListener('click', () => setTopic(t === active ? null : t, false)); tp.append(b); });
+      tr.append(tp);
+      [['沈伯洋', p.stance_shen], ['蔣萬安', p.stance_chiang]].forEach(([who, st]) => {
+        const td = mk('td', 'st'), c = mk('span', 'chip ' + st); c.append(mk('span', 'who', who + ' '), STZ[st] || st); td.append(c); tr.append(td); });
+      const sar = mk('td', 'sar'); if (p.sarcasm) sar.append(mk('span', 'chip sarc', '反諷')); tr.append(sar);
+      tr.append(mk('td', 'sum', p.summary));
+      const ln = mk('td', 'link'), a = mk('a', null, '原文 ↗'); a.href = p.url; a.target = '_blank'; a.rel = 'noopener'; ln.append(a); tr.append(ln);
+      tr.append(mk('td', 'br'));
+      body.append(tr);
+    });
+    if (!shown.length) { const tr = mk('tr'), td = mk('td', 'empty', '沒有符合的貼文'); td.colSpan = 9; tr.append(td); body.append(tr); }
+    const desc = document.getElementById('posts-desc');
+    if (desc) desc.textContent = active
+      ? `議題「${active}」共 ${list.length} 則相關貼文，依讚數顯示前 ${shown.length} 則。`
+      : `選舉相關貼文中讚數最高的 ${shown.length} 則；摘要由 Claude 撰寫，原文請見連結。點選議題可篩選。`;
+    const bar = document.getElementById('filterbar');
+    if (bar) { bar.hidden = !active; const nm = document.getElementById('filter-name'); if (nm) nm.textContent = active || ''; }
+  }
+  const clear = document.getElementById('filter-clear');
+  if (clear) clear.addEventListener('click', () => setTopic(null, false));
+
   function stacked(el) {
     const rows = D.topics, keys = [['shen', C[0], '挺沈伯洋／批蔣萬安'], ['chiang', C[1], '挺蔣萬安／批沈伯洋'], ['neutral', CM, '中立／混合']];
     const W = el.clientWidth, bh = 22, gap = 8, H = rows.length * (bh + gap), svg = svgIn(el, H, '當日各議題貼文數，依立場傾向拆分');
@@ -73,10 +121,15 @@
     const tip = tipFor(el);
     rows.forEach((r, i) => {
       const y = i * (bh + gap); let x0 = left;
-      svg.append('text').attr('class', 'lab').attr('x', left - 8).attr('y', y + bh / 2).attr('dy', '.35em').attr('text-anchor', 'end').text(r.topic);
-      keys.forEach(([k, fill]) => { const w = x(r[k]); if (w > 0) svg.append('rect').attr('x', x0).attr('y', y).attr('width', w).attr('height', bh).attr('fill', fill)
-        .on('pointermove', (e) => tip.show(e, `${r.topic}（${r.posts} 則）\n` + keys.map(([kk, , n]) => `${n}：${r[kk]}`).join('\n'))).on('pointerleave', tip.hide); x0 += w; });
-      svg.append('text').attr('class', 'val').attr('x', x0 + 4).attr('y', y + bh / 2).attr('dy', '.35em').text(fmt(r.posts));
+      const dim = active && r.topic !== active ? 0.3 : 1;
+      const pick = () => setTopic(r.topic === active ? null : r.topic, true);
+      const g = svg.append('g').attr('class', 'clickable').attr('opacity', dim).on('click', pick);
+      g.append('rect').attr('x', 0).attr('y', y - gap / 2).attr('width', W).attr('height', bh + gap).attr('fill', 'transparent');
+      g.append('text').attr('class', 'lab').attr('x', left - 8).attr('y', y + bh / 2).attr('dy', '.35em').attr('text-anchor', 'end')
+        .style('font-weight', r.topic === active ? 600 : null).text(r.topic);
+      keys.forEach(([k, fill]) => { const w = x(r[k]); if (w > 0) g.append('rect').attr('x', x0).attr('y', y).attr('width', w).attr('height', bh).attr('fill', fill)
+        .on('pointermove', (e) => tip.show(e, `${r.topic}（${r.posts} 則）\n` + keys.map(([kk, , n]) => `${n}：${r[kk]}`).join('\n') + '\n點選以篩選貼文')).on('pointerleave', tip.hide); x0 += w; });
+      g.append('text').attr('class', 'val').attr('x', x0 + 4).attr('y', y + bh / 2).attr('dy', '.35em').text(fmt(r.posts));
     });
   }
 
@@ -93,7 +146,6 @@
   }
 
   function drawAll() {
-    const go = (id, f) => { const el = document.getElementById(id); if (el) { el.replaceChildren(); f(el); } };
     if (D.cands) go('stance', stance);
     if (D.trend && D.trend.length) go('trend', trend);
     if (D.topics) go('topics', stacked);
@@ -101,5 +153,6 @@
     if (D.image_types) go('itype', (el) => bars(el, D.image_types, '當日含各類圖片的貼文數'));
   }
   drawAll();
+  renderPosts();
   let w = window.innerWidth; window.addEventListener('resize', () => { if (window.innerWidth !== w) { w = window.innerWidth; drawAll(); } });
 })();
