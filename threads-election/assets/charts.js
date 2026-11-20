@@ -145,12 +145,76 @@
       svg.append('text').attr('class', 'val').attr('x', left + x(r.posts) + 4).attr('y', y + bh / 2).attr('dy', '.35em').text(fmt(r.posts)); });
   }
 
+  // ---------- topic cloud + word cloud ----------
+  let cloudMetric = 'posts', cloudExpand = false;
+  const FONT = getComputedStyle(document.body).fontFamily;
+  function leanColor(x) {
+    const tot = x.shen + x.chiang + x.neutral, mid = css('--muted'); if (!tot) return mid;
+    const t = (x.shen - x.chiang) / tot;   // -1 pro-Chiang .. +1 pro-Shen
+    return t >= 0 ? d3.interpolateRgb(mid, C[0])(Math.min(1, t * 1.4)) : d3.interpolateRgb(mid, C[1])(Math.min(1, -t * 1.4));
+  }
+  function cloud(el, items, unit, maxShown, scaleFrom, shrink = true) {
+    const rows = items.filter((d) => d[cloudMetric] > 0).sort((a, b) => b[cloudMetric] - a[cloudMetric]).slice(0, maxShown);
+    if (!rows.length) { el.append(mk('p', 'note', '沒有足夠的資料。')); return; }
+    const W = el.clientWidth || 800, H = Math.round(Math.max(240, Math.min(380, W * 0.45)));
+    const ext = d3.extent(rows, (d) => d[cloudMetric]);
+    const lo = scaleFrom === 'zero' || ext[0] === ext[1] ? 0 : ext[0];
+    const fs = d3.scaleSqrt().domain([lo, ext[1]]).range([12, Math.max(28, Math.min(60, W / 10))]);
+    const words = rows.map((d) => ({ ...d, size: Math.round(fs(d[cloudMetric])) }));
+    const tot = D.cloud_totals || {};
+    const tip = tipFor(el);
+    const msg = (d) => `${d.text}${d.other ? '（其他細項）' : ''}\n${fmt(d.posts)} 則貼文 · ${fmt(d.likes)} 讚\n挺沈 ${d.shen} · 挺蔣 ${d.chiang} · 中立／混合 ${d.neutral}`;
+    if (!(d3.layout && d3.layout.cloud)) {
+      const box = mk('div', 'fallback'); el.append(box);
+      words.forEach((d) => { const sp = mk('span', null, d.text); sp.style.fontSize = d.size + 'px'; sp.style.color = leanColor(d); box.append(sp); });
+      return;
+    }
+    const layout = (scale, tries) => d3.layout.cloud().size([W, H])
+      .words(words.map((d) => ({ ...d, size: Math.max(10, Math.round(d.size * scale)) })))
+      .padding(4).rotate(0).random(() => 0.5).font(FONT).fontWeight(600).fontSize((d) => d.size).spiral('archimedean')
+      .on('end', (placed) => {
+        if (placed.length < words.length && tries > 0 && shrink) return layout(scale * 0.85, tries - 1);
+        el.querySelectorAll('svg, .note').forEach((n) => n.remove());
+        const svg = svgIn(el, H, unit + '文字雲');
+        svg.append('g').attr('transform', `translate(${W / 2},${H / 2})`).selectAll('text').data(placed).join('text')
+          .attr('text-anchor', 'middle').attr('transform', (d) => `translate(${d.x},${d.y})`)
+          .style('font-size', (d) => d.size + 'px').style('font-family', FONT).style('font-weight', 600)
+          .style('fill', (d) => leanColor(d)).text((d) => d.text)
+          .on('pointermove', (e, d) => tip.show(e, msg(d))).on('pointerleave', tip.hide);
+        if (placed.length < words.length) el.append(mk('p', 'note', `另有 ${words.length - placed.length} 個較小的${unit}因版面不足未顯示。`));
+      }).start();
+    layout(1, 4);
+  }
+  function drawClouds() {
+    const c = D.cloud; if (!c) return;
+    if (c.excluded_topics && c.excluded_topics.length) {
+      const d = document.getElementById('tcloud-desc');
+      if (d) d.textContent = `Claude 標註的議題（不含「${c.excluded_topics.join('」「')}」）。`;
+    }
+    if (c.excluded_words && c.excluded_words.length) {
+      const d = document.getElementById('wcloud-desc');
+      if (d) d.textContent = `直接從貼文原文斷詞統計，每則貼文同一個詞只算一次，且至少出現在 2 則貼文中；候選人姓名與「台北」「市長」等幾乎每則都有的詞不列入。`;
+    }
+    const tItems = cloudExpand ? c.topics.filter((t) => t.text !== '其他').concat(c.others || []) : c.topics;
+    go('tcloud', (el) => cloud(el, tItems, '議題', cloudExpand ? 70 : 30, 'zero', !cloudExpand));
+    go('wcloud', (el) => c.words ? cloud(el, c.words, '詞', el.clientWidth < 600 ? 35 : 60, 'min')
+                                 : el.append(mk('p', 'note', '這一天沒有詞彙資料。')));
+  }
+  const ex = document.getElementById('cloud-expand');
+  if (ex) ex.addEventListener('change', () => { cloudExpand = ex.checked; drawClouds(); });
+  document.querySelectorAll('#cloud-metric button').forEach((b) => b.addEventListener('click', () => {
+    cloudMetric = b.dataset.m;
+    document.querySelectorAll('#cloud-metric button').forEach((x) => x.classList.toggle('on', x === b));
+    drawClouds();
+  }));
+
   function drawAll() {
     if (D.cands) go('stance', stance);
     if (D.trend && D.trend.length) go('trend', trend);
     if (D.topics) go('topics', stacked);
     if (D.post_types) go('ptype', (el) => bars(el, D.post_types, '當日各類型貼文數'));
     if (D.image_types) go('itype', (el) => bars(el, D.image_types, '當日含各類圖片的貼文數'));
+    drawClouds();
   }
   drawAll();
   renderPosts();
