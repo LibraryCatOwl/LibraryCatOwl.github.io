@@ -67,3 +67,18 @@ td { border-bottom: 1px solid var(--line); padding: 6px 8px; vertical-align: top
 .chip.support { color: var(--fg); border-color: var(--fg); } .chip.oppose { color: var(--fg); border: 1px dashed var(--fg); }
 .defs { margin-top: 20px; font-size: 13px; color: var(--muted); } .defs dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; } .defs dt { color: var(--fg); } .defs dd { margin: 0; }
 .tp-foot { margin-top: 24px; font-size: 12px; color: var(--muted); }
+.cloudbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin: 4px 0 6px; }
+.cloudbar .legend { margin: 0; }
+.cloudbar .chk { font-size: 12px; cursor: pointer; user-select: none; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { font: inherit; font-size: 12px; background: none; border: 0; color: var(--fg); padding: 3px 10px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button.on { background: var(--fg); color: var(--bg); }
+.ramp { display: inline-block; width: 90px; height: 8px; border-radius: 4px; margin: 0 6px; vertical-align: 0;
+        background: linear-gradient(90deg, var(--c1), var(--muted), var(--c0)); }
+.card h3.sub3 { font-size: 15px; font-weight: 600; color: var(--fg); margin: 18px 0 2px; letter-spacing: normal; text-transform: none; }
+.cloud { position: relative; min-height: 120px; }
+.cloud svg { display: block; }
+.cloud .note { font-size: 12px; color: var(--muted); }
+.cloud .fallback { display: flex; flex-wrap: wrap; gap: 4px 12px; justify-content: center; align-items: baseline; padding: 12px 0; }
+.cloud .fallback span { font-weight: 600; line-height: 1.2; }
