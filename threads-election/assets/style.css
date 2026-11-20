@@ -1,10 +1,10 @@
 
-:root { --fg:#1f1e1c; --muted:#6b6a66; --bg:#faf9f6; --panel:#fff; --line:#e6e3dc; --c0:#2f6f8f; --c1:#c9822b; --c2:#7a7a9c; --cm:#bdbab2; --warn:#b4690e; }
-@media (prefers-color-scheme: dark) { :root { --fg:#ecebe7; --muted:#a3a19b; --bg:#1b1b1a; --panel:#242423; --line:#3a3936; --c0:#6fb0cf; --c1:#e3a55a; --c2:#a9a9c9; --cm:#5d5b56; } }
+:root { --fg:#1f1e1c; --muted:#6b6a66; --bg:#faf9f6; --panel:#fff; --line:#e6e3dc; --c0:#db6a41; --c1:#0072ce; --c2:#7a7a9c; --cm:#bdbab2; --warn:#b4690e; --ui:#7a4fa3; }
+@media (prefers-color-scheme: dark) { :root { --fg:#ecebe7; --muted:#a3a19b; --bg:#1b1b1a; --panel:#242423; --line:#3a3936; --c0:#db6a41; --c1:#1e88e5; --c2:#a9a9c9; --cm:#5d5b56; --ui:#b48fd8; } }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.6 -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif; }
 .tp { max-width: 1080px; margin: 0 auto; padding: 24px 16px 48px; }
-a { color: var(--c0); }
+a { color: var(--ui); }
 .tp-nav { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 12px; }
 .tp-title { font-family: "Songti TC", "Noto Serif TC", serif; font-weight: 400; font-size: 28px; margin: 0; }
 .tp-sub { color: var(--muted); font-size: 13px; }
@@ -36,15 +36,15 @@ td { border-bottom: 1px solid var(--line); padding: 6px 8px; vertical-align: top
 .sum { min-width: 220px; }
 .posts .topics { min-width: 9em; }
 .posts .unit, .posts .who, .posts td.br { display: none; }
-.chip.sarc { color: var(--fg); border-color: var(--c1); }
+.chip.sarc { color: var(--fg); border-color: var(--ui); }
 .method { margin-top: 12px; font-size: 13px; }
 .method .stamp { line-height: 1.8; } .method .lbl { color: var(--muted); margin-right: 4px; }
 .method ol { margin: 8px 0 0; padding-left: 20px; } .method ul { margin: 2px 0; padding-left: 18px; } .method li { margin: 2px 0; }
 .hint { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
 .topic-btn { font: inherit; font-size: 12px; line-height: 1.6; background: none; border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; margin: 0 4px 4px 0; color: var(--fg); cursor: pointer; }
-.topic-btn:hover, .topic-btn.active { border-color: var(--c0); color: var(--c0); }
+.topic-btn:hover, .topic-btn.active { border-color: var(--ui); color: var(--ui); }
 .filterbar { font-size: 13px; margin: 0 0 8px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
-.filterbar button { font: inherit; background: none; border: 0; color: var(--c0); cursor: pointer; padding: 0 0 0 6px; }
+.filterbar button { font: inherit; background: none; border: 0; color: var(--ui); cursor: pointer; padding: 0 0 0 6px; }
 .chart .clickable { cursor: pointer; }
 .posts td.empty { color: var(--muted); text-align: center; padding: 16px; }
 @media (max-width: 640px) {
