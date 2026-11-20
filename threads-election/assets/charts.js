@@ -208,12 +208,38 @@
     drawClouds();
   }));
 
+  // ---------- rising words ----------
+  function rising(el) {
+    const R = D.rising, desc = document.getElementById('rise-desc');
+    if (!R) { el.append(mk('p', 'note', '這是第一天的資料（或尚未安裝斷詞套件），沒有之前的日期可以比較。')); return; }
+    if (desc) desc.textContent = `與之前 ${R.before_days} 天（共 ${fmt(R.before_posts)} 則選舉相關貼文）相比，當日明顯更常出現的詞。`;
+    const rows = R.words;
+    if (!rows.length) { el.append(mk('p', 'note', '當日沒有明顯升溫的詞。')); return; }
+    const pc = (v) => (v * 100).toFixed(1) + '%';
+    const W = el.clientWidth, bh = 20, gap = 8, H = rows.length * (bh + gap);
+    const svg = svgIn(el, H, '當日升溫詞');
+    const vals = rows.map((r) => `${pc(r.before_share)} → ${pc(r.today_share)}（${r.today} 則）`);
+    const lw = d3.max(widths(svg, rows.map((r) => r.w))) + 12, rw = d3.max(widths(svg, vals)) + 10;
+    const x = d3.scaleLinear().domain([0, d3.max(rows, (r) => r.z)]).range([0, Math.max(40, W - lw - rw)]);
+    const tip = tipFor(el);
+    rows.forEach((r, i) => {
+      const y = i * (bh + gap);
+      const msg = `${r.w}\n當日 ${r.today} 則（${pc(r.today_share)}）\n之前 ${r.before} 則（${pc(r.before_share)}）\n當日立場：挺沈 ${r.shen} · 挺蔣 ${r.chiang} · 中立／混合 ${r.neutral}`;
+      svg.append('text').attr('class', 'lab').attr('x', lw - 8).attr('y', y + bh / 2).attr('dy', '.35em').attr('text-anchor', 'end').text(r.w);
+      svg.append('rect').attr('x', lw).attr('y', y).attr('width', x(r.z)).attr('height', bh).attr('rx', 2).attr('fill', leanColor(r));
+      svg.append('text').attr('class', 'val').attr('x', lw + x(r.z) + 6).attr('y', y + bh / 2).attr('dy', '.35em').text(vals[i]);
+      svg.append('rect').attr('x', 0).attr('y', y - gap / 2).attr('width', W).attr('height', bh + gap).attr('fill', 'transparent')
+        .on('pointermove', (e) => tip.show(e, msg)).on('pointerleave', tip.hide);
+    });
+  }
+
   function drawAll() {
     if (D.cands) go('stance', stance);
     if (D.trend && D.trend.length) go('trend', trend);
     if (D.topics) go('topics', stacked);
     if (D.post_types) go('ptype', (el) => bars(el, D.post_types, '當日各類型貼文數'));
     if (D.image_types) go('itype', (el) => bars(el, D.image_types, '當日含各類圖片的貼文數'));
+    if ('rising' in D) go('rising', rising);
     drawClouds();
   }
   drawAll();
