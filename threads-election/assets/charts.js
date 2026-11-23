@@ -188,9 +188,10 @@
     const words = rows.map((d) => ({ ...d, size: Math.round(fs(d[cloudMetric])) }));
     const tot = D.cloud_totals || {};
     const tip = tipFor(el);
-    const pick = (d) => unit === '詞' ? setWord(d.text, true)
+    const clickable = !!document.getElementById('posts-body');
+    const pick = (d) => !clickable ? null : unit === '詞' ? setWord(d.text, true)
       : d.other ? setOther(d.text, true) : setTopic(d.text === active ? null : d.text, true);
-    const msg = (d) => `${d.text}${d.other ? '（其他細項）' : ''}\n${fmt(d.posts)} 則貼文 · ${fmt(d.likes)} 讚\n挺沈 ${d.shen} · 挺蔣 ${d.chiang} · 中立／混合 ${d.neutral}\n點選以篩選下方貼文`;
+    const msg = (d) => `${d.text}${d.other ? '（其他細項）' : ''}\n${fmt(d.posts)} 則貼文 · ${fmt(d.likes)} 讚\n挺沈 ${d.shen} · 挺蔣 ${d.chiang} · 中立／混合 ${d.neutral}${clickable ? '\n點選以篩選下方貼文' : ''}`;
     if (!(d3.layout && d3.layout.cloud)) {
       const box = mk('div', 'fallback'); el.append(box);
       words.forEach((d) => { const sp = mk('span', null, d.text); sp.style.fontSize = d.size + 'px'; sp.style.color = leanColor(d);
@@ -208,7 +209,7 @@
         svg.append('g').attr('transform', `translate(${W / 2},${H / 2})`).selectAll('text').data(placed).join('text')
           .attr('text-anchor', 'middle').attr('transform', (d) => `translate(${d.x},${d.y})`)
           .style('font-size', (d) => d.size + 'px').style('font-family', FONT).style('font-weight', 600)
-          .style('fill', (d) => leanColor(d)).style('cursor', 'pointer').text((d) => d.text)
+          .style('fill', (d) => leanColor(d)).style('cursor', clickable ? 'pointer' : 'default').text((d) => d.text)
           .on('pointermove', (e, d) => tip.show(e, msg(d))).on('pointerleave', tip.hide)
           .on('click', (e, d) => { tip.hide(); pick(d); });
         markClouds();
