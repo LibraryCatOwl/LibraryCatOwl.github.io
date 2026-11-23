@@ -68,22 +68,46 @@
   const go = (id, f) => { const el = document.getElementById(id); if (el) { el.replaceChildren(); f(el); } };
   const STZ = { support: '支持', oppose: '反對', neutral: '中立', mixed: '混合', not_mentioned: '未提及' };
   const reduce = !window.matchMedia || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let active = (location.hash.match(/^#topic=(.+)$/) || [])[1];
-  active = active ? decodeURIComponent(active) : null;
+  // one filter at a time: a topic (active), a word (activeWord) or a 其他 sub-label (activeOther)
+  const fromHash = (k) => { const m = location.hash.match(new RegExp('^#' + k + '=(.+)$')); return m ? decodeURIComponent(m[1]) : null; };
+  let active = fromHash('topic'), activeWord = fromHash('word'), activeOther = null;
   if (active && !(D.posts || []).some((p) => p.topics.includes(active))) active = null;
+  if (activeWord && !(D.word_posts && D.word_posts[activeWord])) activeWord = null;
 
-  function setTopic(t, scroll) {
-    active = t || null;
-    history.replaceState(null, '', active ? '#topic=' + encodeURIComponent(active) : location.pathname + location.search);
+  function applyFilter(scroll, hash) {
+    history.replaceState(null, '', hash || location.pathname + location.search);
     renderPosts();
     if (D.topics) go('topics', stacked);
-    if (scroll && active) document.getElementById('posts').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    markClouds();
+    if (scroll && (active || activeWord || activeOther))
+      document.getElementById('posts').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  }
+  function setTopic(t, scroll) {
+    active = t || null; activeWord = null; activeOther = null;
+    applyFilter(scroll, active ? '#topic=' + encodeURIComponent(active) : null);
+  }
+  function setWord(w, scroll) {
+    activeWord = w && w !== activeWord ? w : null; active = null; activeOther = null;
+    applyFilter(scroll, activeWord ? '#word=' + encodeURIComponent(activeWord) : null);
+  }
+  function setOther(o, scroll) {
+    activeOther = o && o !== activeOther ? o : null; active = null; activeWord = null;
+    applyFilter(scroll, null);
+  }
+  // dim the cloud words that are not the current filter
+  function markClouds() {
+    const cur = activeWord || activeOther || active;
+    document.querySelectorAll('#tcloud text, #wcloud text, #tcloud .fallback span, #wcloud .fallback span').forEach((n) => {
+      n.style.opacity = !cur || n.textContent === cur ? 1 : 0.3;
+    });
   }
   const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 
   function renderPosts() {
     const body = document.getElementById('posts-body'); if (!body || !D.posts) return;
-    const list = active ? D.posts.filter((p) => p.topics.includes(active)) : D.posts;
+    const list = activeWord ? ((D.word_posts || {})[activeWord] || []).map((i) => D.posts[i]).filter(Boolean)
+      : activeOther ? D.posts.filter((p) => p.other === activeOther)
+      : active ? D.posts.filter((p) => p.topics.includes(active)) : D.posts;
     const shown = list.slice(0, D.top_n);
     body.replaceChildren();
     shown.forEach((p, i) => {
@@ -104,14 +128,15 @@
     });
     if (!shown.length) { const tr = mk('tr'), td = mk('td', 'empty', '沒有符合的貼文'); td.colSpan = 9; tr.append(td); body.append(tr); }
     const desc = document.getElementById('posts-desc');
-    if (desc) desc.textContent = active
-      ? `議題「${active}」共 ${list.length} 則相關貼文，依讚數顯示前 ${shown.length} 則。`
+    const label = activeWord ? `含「${activeWord}」的貼文` : activeOther ? `其他細項「${activeOther}」` : active ? `議題「${active}」` : '';
+    if (desc) desc.textContent = label
+      ? `${label}共 ${list.length} 則，依讚數顯示前 ${shown.length} 則。`
       : `選舉相關貼文中讚數最高的 ${shown.length} 則；摘要由 Claude 撰寫，原文請見連結。點選議題可篩選。`;
     const bar = document.getElementById('filterbar');
-    if (bar) { bar.hidden = !active; const nm = document.getElementById('filter-name'); if (nm) nm.textContent = active || ''; }
+    if (bar) { bar.hidden = !label; const nm = document.getElementById('filter-name'); if (nm) nm.textContent = activeWord ? `詞彙「${activeWord}」` : activeOther ? `其他細項「${activeOther}」` : (active || ''); }
   }
   const clear = document.getElementById('filter-clear');
-  if (clear) clear.addEventListener('click', () => setTopic(null, false));
+  if (clear) clear.addEventListener('click', () => { active = null; activeWord = null; activeOther = null; applyFilter(false, null); });
 
   function stacked(el) {
     const rows = D.topics, keys = [['shen', C[0], '挺沈伯洋／批蔣萬安'], ['chiang', C[1], '挺蔣萬安／批沈伯洋'], ['neutral', CM, '中立／混合']];
@@ -163,10 +188,14 @@
     const words = rows.map((d) => ({ ...d, size: Math.round(fs(d[cloudMetric])) }));
     const tot = D.cloud_totals || {};
     const tip = tipFor(el);
-    const msg = (d) => `${d.text}${d.other ? '（其他細項）' : ''}\n${fmt(d.posts)} 則貼文 · ${fmt(d.likes)} 讚\n挺沈 ${d.shen} · 挺蔣 ${d.chiang} · 中立／混合 ${d.neutral}`;
+    const pick = (d) => unit === '詞' ? setWord(d.text, true)
+      : d.other ? setOther(d.text, true) : setTopic(d.text === active ? null : d.text, true);
+    const msg = (d) => `${d.text}${d.other ? '（其他細項）' : ''}\n${fmt(d.posts)} 則貼文 · ${fmt(d.likes)} 讚\n挺沈 ${d.shen} · 挺蔣 ${d.chiang} · 中立／混合 ${d.neutral}\n點選以篩選下方貼文`;
     if (!(d3.layout && d3.layout.cloud)) {
       const box = mk('div', 'fallback'); el.append(box);
-      words.forEach((d) => { const sp = mk('span', null, d.text); sp.style.fontSize = d.size + 'px'; sp.style.color = leanColor(d); box.append(sp); });
+      words.forEach((d) => { const sp = mk('span', null, d.text); sp.style.fontSize = d.size + 'px'; sp.style.color = leanColor(d);
+        sp.style.cursor = 'pointer'; sp.addEventListener('click', () => pick(d)); box.append(sp); });
+      markClouds();
       return;
     }
     const layout = (scale, tries) => d3.layout.cloud().size([W, H])
@@ -179,8 +208,10 @@
         svg.append('g').attr('transform', `translate(${W / 2},${H / 2})`).selectAll('text').data(placed).join('text')
           .attr('text-anchor', 'middle').attr('transform', (d) => `translate(${d.x},${d.y})`)
           .style('font-size', (d) => d.size + 'px').style('font-family', FONT).style('font-weight', 600)
-          .style('fill', (d) => leanColor(d)).text((d) => d.text)
-          .on('pointermove', (e, d) => tip.show(e, msg(d))).on('pointerleave', tip.hide);
+          .style('fill', (d) => leanColor(d)).style('cursor', 'pointer').text((d) => d.text)
+          .on('pointermove', (e, d) => tip.show(e, msg(d))).on('pointerleave', tip.hide)
+          .on('click', (e, d) => { tip.hide(); pick(d); });
+        markClouds();
         if (placed.length < words.length) el.append(mk('p', 'note', `另有 ${words.length - placed.length} 個較小的${unit}因版面不足未顯示。`));
       }).start();
     layout(1, 4);
@@ -229,7 +260,9 @@
       svg.append('rect').attr('x', lw).attr('y', y).attr('width', x(r.z)).attr('height', bh).attr('rx', 2).attr('fill', leanColor(r));
       svg.append('text').attr('class', 'val').attr('x', lw + x(r.z) + 6).attr('y', y + bh / 2).attr('dy', '.35em').text(vals[i]);
       svg.append('rect').attr('x', 0).attr('y', y - gap / 2).attr('width', W).attr('height', bh + gap).attr('fill', 'transparent')
-        .on('pointermove', (e) => tip.show(e, msg)).on('pointerleave', tip.hide);
+        .style('cursor', 'pointer')
+        .on('pointermove', (e) => tip.show(e, msg + '\n點選以篩選下方貼文')).on('pointerleave', tip.hide)
+        .on('click', () => { tip.hide(); setWord(r.w, true); });
     });
   }
 
