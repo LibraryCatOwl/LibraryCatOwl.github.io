@@ -4,6 +4,73 @@
   const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
   const C = [css('--c0'), css('--c1'), css('--c2')], CM = css('--cm');
   const fmt = d3.format(','), signed = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + fmt(Math.abs(v));
+  // page text: Chinese pages (lang="zh-TW") and English pages (lang="en") share this script
+  const EN = (document.documentElement.lang || '').startsWith('en');
+  const q = (s) => EN ? `“${s}”` : `「${s}」`;
+  const S = EN ? {
+    names: { shen: 'Puma Shen', chiang: 'Chiang Wan-an' },
+    vc: (l, p) => `${l} (${p})`, kv: (k, v) => `${k}: ${v}`,
+    stanceAria: 'Likes on posts supporting and opposing each candidate on this day',
+    stanceMsg: (r) => `${r.name}\nSupport: ${fmt(r.support_likes)} likes (${r.support_posts} posts)\nOppose: ${fmt(r.oppose_likes)} likes (${r.oppose_posts} posts)\nNet: ${signed(r.net)}`,
+    trendAria: 'Daily net sentiment for both candidates',
+    stz: { support: 'Support', oppose: 'Oppose', neutral: 'Neutral', mixed: 'Mixed', not_mentioned: 'Not mentioned' },
+    likeUnit: ' likes', sarc: 'Sarcasm', orig: 'Original ↗', noMatch: 'No matching posts',
+    labWord: (w) => `Posts with ${q(w)}`, labOther: (o) => `“Other” detail ${q(o)}`, labTopic: (t) => `Topic ${q(t)}`,
+    countDesc: (label, n, shown) => `${label}: ${n} posts; showing the top ${shown} by likes.`,
+    defaultDesc: (shown) => `The ${shown} most-liked election posts. Summaries by Claude; follow the link for the original. Click a topic to filter.`,
+    filterWord: (w) => `Word ${q(w)}`,
+    lean: ['Pro-Shen / anti-Chiang', 'Pro-Chiang / anti-Shen', 'Neutral / mixed'],
+    topicsAria: 'Posts per topic on this day, split by lean',
+    topicTip: (t, n) => `${t} (${n} posts)`, clickFilter: 'Click to filter posts',
+    barTip: (l, n) => `${l}: ${n} posts`, noData: 'Not enough data.',
+    cloudMsg: (label, d, clickable) => `${label}${d.other ? ' (Other detail)' : ''}\n${fmt(d.posts)} posts · ${fmt(d.likes)} likes\nPro-Shen ${d.shen} · Pro-Chiang ${d.chiang} · Neutral/mixed ${d.neutral}${clickable ? '\nClick to filter posts below' : ''}`,
+    unit: { topic: 'topic', word: 'word' },
+    cloudAria: (kind) => `${kind === 'word' ? 'Word' : 'Topic'} cloud`,
+    hidden: (n, kind) => `${n} smaller ${kind}${n === 1 ? '' : 's'} didn't fit.`,
+    tcloudDesc: (ex) => `Topics labeled by Claude (excluding ${ex.map(q).join(', ')}).`,
+    wcloudDesc: 'Counted from the post text after word segmentation; each word counts once per post and must appear in at least 2 posts. Candidate names and near-universal words like “Taipei” and “mayor” are left out. Words are translated; hover to see the original Chinese.',
+    otherKey: 'Other', noWords: 'No word data for this day.',
+    riseFirst: "This is the first day of data (or word segmentation isn't installed), so there's nothing earlier to compare with.",
+    riseDesc: (days, posts) => `Words used much more on this day than in the previous ${days} days (${posts} election posts).`,
+    riseNone: 'No words rose noticeably on this day.', riseAria: 'Rising words on this day',
+    riseVal: (b, t, n) => `${b} → ${t} (${n} posts)`,
+    riseMsg: (label, r, pc) => `${label}\nThis day: ${r.today} posts (${pc(r.today_share)})\nBefore: ${r.before} posts (${pc(r.before_share)})\nLean this day: Pro-Shen ${r.shen} · Pro-Chiang ${r.chiang} · Neutral/mixed ${r.neutral}`,
+    clickBelow: '\nClick to filter posts below',
+    ptypeAria: 'Posts of each type on this day', itypeAria: 'Posts with each image type on this day',
+  } : {
+    names: { shen: '沈伯洋', chiang: '蔣萬安' },
+    vc: (l, p) => `${l}（${p}）`, kv: (k, v) => `${k}：${v}`,
+    stanceAria: '兩位候選人當日支持與反對貼文的讚數',
+    stanceMsg: (r) => `${r.name}\n支持：${fmt(r.support_likes)} 讚（${r.support_posts} 則）\n反對：${fmt(r.oppose_likes)} 讚（${r.oppose_posts} 則）\n淨聲量：${signed(r.net)}`,
+    trendAria: '兩位候選人每日淨聲量趨勢',
+    stz: { support: '支持', oppose: '反對', neutral: '中立', mixed: '混合', not_mentioned: '未提及' },
+    likeUnit: ' 讚', sarc: '反諷', orig: '原文 ↗', noMatch: '沒有符合的貼文',
+    labWord: (w) => `含「${w}」的貼文`, labOther: (o) => `其他細項「${o}」`, labTopic: (t) => `議題「${t}」`,
+    countDesc: (label, n, shown) => `${label}共 ${n} 則，依讚數顯示前 ${shown} 則。`,
+    defaultDesc: (shown) => `選舉相關貼文中讚數最高的 ${shown} 則；摘要由 Claude 撰寫，原文請見連結。點選議題可篩選。`,
+    filterWord: (w) => `詞彙「${w}」`,
+    lean: ['挺沈伯洋／批蔣萬安', '挺蔣萬安／批沈伯洋', '中立／混合'],
+    topicsAria: '當日各議題貼文數，依立場傾向拆分',
+    topicTip: (t, n) => `${t}（${n} 則）`, clickFilter: '點選以篩選貼文',
+    barTip: (l, n) => `${l}：${n} 則`, noData: '沒有足夠的資料。',
+    cloudMsg: (label, d, clickable) => `${label}${d.other ? '（其他細項）' : ''}\n${fmt(d.posts)} 則貼文 · ${fmt(d.likes)} 讚\n挺沈 ${d.shen} · 挺蔣 ${d.chiang} · 中立／混合 ${d.neutral}${clickable ? '\n點選以篩選下方貼文' : ''}`,
+    unit: { topic: '議題', word: '詞' },
+    cloudAria: (kind) => (kind === 'word' ? '詞' : '議題') + '文字雲',
+    hidden: (n, kind) => `另有 ${n} 個較小的${kind === 'word' ? '詞' : '議題'}因版面不足未顯示。`,
+    tcloudDesc: (ex) => `Claude 標註的議題（不含「${ex.join('」「')}」）。`,
+    wcloudDesc: '直接從貼文原文斷詞統計，每則貼文同一個詞只算一次，且至少出現在 2 則貼文中；候選人姓名與「台北」「市長」等幾乎每則都有的詞不列入。',
+    otherKey: '其他', noWords: '這一天沒有詞彙資料。',
+    riseFirst: '這是第一天的資料（或尚未安裝斷詞套件），沒有之前的日期可以比較。',
+    riseDesc: (days, posts) => `與之前 ${days} 天（共 ${posts} 則選舉相關貼文）相比，當日明顯更常出現的詞。`,
+    riseNone: '當日沒有明顯升溫的詞。', riseAria: '當日升溫詞',
+    riseVal: (b, t, n) => `${b} → ${t}（${n} 則）`,
+    riseMsg: (label, r, pc) => `${label}\n當日 ${r.today} 則（${pc(r.today_share)}）\n之前 ${r.before} 則（${pc(r.before_share)}）\n當日立場：挺沈 ${r.shen} · 挺蔣 ${r.chiang} · 中立／混合 ${r.neutral}`,
+    clickBelow: '\n點選以篩選下方貼文',
+    ptypeAria: '當日各類型貼文數', itypeAria: '當日含各類圖片的貼文數',
+  };
+  // words are keyed by the original Chinese; English pages carry a glossary for display
+  const lab = (w) => (D.glossary && D.glossary[w]) || w;
+  const labFull = (w) => (D.glossary && D.glossary[w] ? `${D.glossary[w]} (${w})` : w);
   const widths = (svg, s) => { const g = svg.append('g').attr('opacity', 0); const w = s.map((t) => g.append('text').text(t).node().getComputedTextLength() || String(t).length * 12); g.remove(); return w; };
   const tipFor = (el) => { const t = document.createElement('div'); t.className = 'tip'; t.hidden = true; el.appendChild(t);
     return { show(ev, text) { t.textContent = text; t.hidden = false; const [x, y] = d3.pointer(ev, el);
@@ -14,30 +81,30 @@
   function stance(el) {
     const rows = [['shen', 0], ['chiang', 1]].map(([k, c]) => ({ ...D.cands[k], c }));
     const W = el.clientWidth, rowH = 34, gap = 14, H = rows.length * (rowH + gap);
-    const svg = svgIn(el, H, '兩位候選人當日支持與反對貼文的讚數');
+    const svg = svgIn(el, H, S.stanceAria);
     const lw = d3.max(widths(svg, rows.map((r) => r.name))) + 10;
-    const vw = d3.max(widths(svg, rows.flatMap((r) => [`${fmt(r.support_likes)}（${r.support_posts}）`, `${fmt(r.oppose_likes)}（${r.oppose_posts}）`]))) + 8;
+    const vw = d3.max(widths(svg, rows.flatMap((r) => [S.vc(fmt(r.support_likes), r.support_posts), S.vc(fmt(r.oppose_likes), r.oppose_posts)]))) + 8;
     const center = lw + (W - lw) / 2, half = Math.max(10, (W - lw) / 2 - vw);
     const x = d3.scaleLinear().domain([0, d3.max(rows, (r) => Math.max(r.support_likes, r.oppose_likes)) || 1]).range([0, half]);
     const tip = tipFor(el);
     rows.forEach((r, i) => {
       const y = i * (rowH + gap) + gap / 2;
       svg.append('text').attr('class', 'lab').attr('y', y + rowH / 2).attr('dy', '.35em').text(r.name);
-      const msg = `${r.name}\n支持：${fmt(r.support_likes)} 讚（${r.support_posts} 則）\n反對：${fmt(r.oppose_likes)} 讚（${r.oppose_posts} 則）\n淨聲量：${signed(r.net)}`;
+      const msg = S.stanceMsg(r);
       svg.append('rect').attr('x', center - x(r.oppose_likes)).attr('y', y).attr('width', x(r.oppose_likes)).attr('height', rowH).attr('fill', C[r.c]).attr('opacity', .4)
         .on('pointermove', (e) => tip.show(e, msg)).on('pointerleave', tip.hide);
       svg.append('rect').attr('x', center).attr('y', y).attr('width', x(r.support_likes)).attr('height', rowH).attr('fill', C[r.c])
         .on('pointermove', (e) => tip.show(e, msg)).on('pointerleave', tip.hide);
-      svg.append('text').attr('class', 'val').attr('x', center - x(r.oppose_likes) - 4).attr('y', y + rowH / 2).attr('dy', '.35em').attr('text-anchor', 'end').text(`${fmt(r.oppose_likes)}（${r.oppose_posts}）`);
-      svg.append('text').attr('class', 'val').attr('x', center + x(r.support_likes) + 4).attr('y', y + rowH / 2).attr('dy', '.35em').text(`${fmt(r.support_likes)}（${r.support_posts}）`);
+      svg.append('text').attr('class', 'val').attr('x', center - x(r.oppose_likes) - 4).attr('y', y + rowH / 2).attr('dy', '.35em').attr('text-anchor', 'end').text(S.vc(fmt(r.oppose_likes), r.oppose_posts));
+      svg.append('text').attr('class', 'val').attr('x', center + x(r.support_likes) + 4).attr('y', y + rowH / 2).attr('dy', '.35em').text(S.vc(fmt(r.support_likes), r.support_posts));
     });
     svg.append('line').attr('x1', center).attr('x2', center).attr('y2', H).attr('stroke', CM);
   }
 
   function trend(el) {
     const parse = d3.utcParse('%Y-%m-%d'), day = d3.utcFormat('%m/%d');
-    const series = [['shen', '沈伯洋', 0], ['chiang', '蔣萬安', 1]].map(([k, name, c]) => ({ name, c, pts: D.trend.map((t) => ({ t: parse(t.date), v: t[k] ?? t.cands?.[k] })) }));
-    const W = el.clientWidth, H = 220, svg = svgIn(el, H, '兩位候選人每日淨聲量趨勢');
+    const series = [['shen', S.names.shen, 0], ['chiang', S.names.chiang, 1]].map(([k, name, c]) => ({ name, c, pts: D.trend.map((t) => ({ t: parse(t.date), v: t[k] ?? t.cands?.[k] })) }));
+    const W = el.clientWidth, H = 220, svg = svgIn(el, H, S.trendAria);
     const all = series.flatMap((s) => s.pts);
     const y = d3.scaleLinear().domain(d3.extent([0, ...all.map((p) => p.v)])).nice(); const ticks = y.ticks(5);
     const ends = series.map((s) => `${s.name} ${signed(s.pts[s.pts.length - 1].v)}`);
@@ -61,12 +128,12 @@
     svg.append('rect').attr('x', m.left).attr('y', m.top).attr('width', Math.max(1, W - m.left - m.right)).attr('height', H - m.top - m.bottom).attr('fill', 'transparent')
       .on('pointermove', (e) => { const px = d3.pointer(e)[0]; const i = d3.leastIndex(dates, (t) => Math.abs(x(t) - px));
         hover.attr('x1', x(dates[i])).attr('x2', x(dates[i])).attr('opacity', 1);
-        tip.show(e, [day(dates[i]), ...series.map((s) => `${s.name}：${signed(s.pts[i].v)}`)].join('\n')); })
+        tip.show(e, [day(dates[i]), ...series.map((s) => S.kv(s.name, signed(s.pts[i].v)))].join('\n')); })
       .on('pointerleave', () => { hover.attr('opacity', 0); tip.hide(); });
   }
 
   const go = (id, f) => { const el = document.getElementById(id); if (el) { el.replaceChildren(); f(el); } };
-  const STZ = { support: '支持', oppose: '反對', neutral: '中立', mixed: '混合', not_mentioned: '未提及' };
+  const STZ = S.stz;
   const reduce = !window.matchMedia || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   // one filter at a time: a topic (active), a word (activeWord) or a 其他 sub-label (activeOther)
   const fromHash = (k) => { const m = location.hash.match(new RegExp('^#' + k + '=(.+)$')); return m ? decodeURIComponent(m[1]) : null; };
@@ -98,7 +165,7 @@
   function markClouds() {
     const cur = activeWord || activeOther || active;
     document.querySelectorAll('#tcloud text, #wcloud text, #tcloud .fallback span, #wcloud .fallback span').forEach((n) => {
-      n.style.opacity = !cur || n.textContent === cur ? 1 : 0.3;
+      n.style.opacity = !cur || (n.getAttribute('data-k') ?? n.textContent) === cur ? 1 : 0.3;
     });
   }
   const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
@@ -113,34 +180,34 @@
     shown.forEach((p, i) => {
       const tr = mk('tr');
       tr.append(mk('td', 'rank num', String(i + 1)));
-      const lk = mk('td', 'likes num', fmt(p.likes)); lk.append(mk('span', 'unit', ' 讚')); tr.append(lk);
+      const lk = mk('td', 'likes num', fmt(p.likes)); lk.append(mk('span', 'unit', S.likeUnit)); tr.append(lk);
       const tp = mk('td', 'topics');
       p.topics.forEach((t) => { const b = mk('button', 'topic-btn' + (t === active ? ' active' : ''), t); b.type = 'button';
         b.addEventListener('click', () => setTopic(t === active ? null : t, false)); tp.append(b); });
       tr.append(tp);
-      [['沈伯洋', p.stance_shen], ['蔣萬安', p.stance_chiang]].forEach(([who, st]) => {
+      [[S.names.shen, p.stance_shen], [S.names.chiang, p.stance_chiang]].forEach(([who, st]) => {
         const td = mk('td', 'st'), c = mk('span', 'chip ' + st); c.append(mk('span', 'who', who + ' '), STZ[st] || st); td.append(c); tr.append(td); });
-      const sar = mk('td', 'sar'); if (p.sarcasm) sar.append(mk('span', 'chip sarc', '反諷')); tr.append(sar);
+      const sar = mk('td', 'sar'); if (p.sarcasm) sar.append(mk('span', 'chip sarc', S.sarc)); tr.append(sar);
       tr.append(mk('td', 'sum', p.summary));
-      const ln = mk('td', 'link'), a = mk('a', null, '原文 ↗'); a.href = p.url; a.target = '_blank'; a.rel = 'noopener'; ln.append(a); tr.append(ln);
+      const ln = mk('td', 'link'), a = mk('a', null, S.orig); a.href = p.url; a.target = '_blank'; a.rel = 'noopener'; ln.append(a); tr.append(ln);
       tr.append(mk('td', 'br'));
       body.append(tr);
     });
-    if (!shown.length) { const tr = mk('tr'), td = mk('td', 'empty', '沒有符合的貼文'); td.colSpan = 9; tr.append(td); body.append(tr); }
+    if (!shown.length) { const tr = mk('tr'), td = mk('td', 'empty', S.noMatch); td.colSpan = 9; tr.append(td); body.append(tr); }
     const desc = document.getElementById('posts-desc');
-    const label = activeWord ? `含「${activeWord}」的貼文` : activeOther ? `其他細項「${activeOther}」` : active ? `議題「${active}」` : '';
+    const label = activeWord ? S.labWord(labFull(activeWord)) : activeOther ? S.labOther(activeOther) : active ? S.labTopic(active) : '';
     if (desc) desc.textContent = label
-      ? `${label}共 ${list.length} 則，依讚數顯示前 ${shown.length} 則。`
-      : `選舉相關貼文中讚數最高的 ${shown.length} 則；摘要由 Claude 撰寫，原文請見連結。點選議題可篩選。`;
+      ? S.countDesc(label, list.length, shown.length)
+      : S.defaultDesc(shown.length);
     const bar = document.getElementById('filterbar');
-    if (bar) { bar.hidden = !label; const nm = document.getElementById('filter-name'); if (nm) nm.textContent = activeWord ? `詞彙「${activeWord}」` : activeOther ? `其他細項「${activeOther}」` : (active || ''); }
+    if (bar) { bar.hidden = !label; const nm = document.getElementById('filter-name'); if (nm) nm.textContent = activeWord ? S.filterWord(labFull(activeWord)) : activeOther ? S.labOther(activeOther) : (active || ''); }
   }
   const clear = document.getElementById('filter-clear');
   if (clear) clear.addEventListener('click', () => { active = null; activeWord = null; activeOther = null; applyFilter(false, null); });
 
   function stacked(el) {
-    const rows = D.topics, keys = [['shen', C[0], '挺沈伯洋／批蔣萬安'], ['chiang', C[1], '挺蔣萬安／批沈伯洋'], ['neutral', CM, '中立／混合']];
-    const W = el.clientWidth, bh = 22, gap = 8, H = rows.length * (bh + gap), svg = svgIn(el, H, '當日各議題貼文數，依立場傾向拆分');
+    const rows = D.topics, keys = [['shen', C[0], S.lean[0]], ['chiang', C[1], S.lean[1]], ['neutral', CM, S.lean[2]]];
+    const W = el.clientWidth, bh = 22, gap = 8, H = rows.length * (bh + gap), svg = svgIn(el, H, S.topicsAria);
     const left = d3.max(widths(svg, rows.map((r) => r.topic))) + 10, right = d3.max(widths(svg, rows.map((r) => fmt(r.posts)))) + 8;
     const x = d3.scaleLinear().domain([0, d3.max(rows, (r) => r.posts) || 1]).range([0, Math.max(10, W - left - right)]);
     const tip = tipFor(el);
@@ -153,7 +220,7 @@
       g.append('text').attr('class', 'lab').attr('x', left - 8).attr('y', y + bh / 2).attr('dy', '.35em').attr('text-anchor', 'end')
         .style('font-weight', r.topic === active ? 600 : null).text(r.topic);
       keys.forEach(([k, fill]) => { const w = x(r[k]); if (w > 0) g.append('rect').attr('x', x0).attr('y', y).attr('width', w).attr('height', bh).attr('fill', fill)
-        .on('pointermove', (e) => tip.show(e, `${r.topic}（${r.posts} 則）\n` + keys.map(([kk, , n]) => `${n}：${r[kk]}`).join('\n') + '\n點選以篩選貼文')).on('pointerleave', tip.hide); x0 += w; });
+        .on('pointermove', (e) => tip.show(e, S.topicTip(r.topic, r.posts) + '\n' + keys.map(([kk, , n]) => S.kv(n, r[kk])).join('\n') + '\n' + S.clickFilter)).on('pointerleave', tip.hide); x0 += w; });
       g.append('text').attr('class', 'val').attr('x', x0 + 4).attr('y', y + bh / 2).attr('dy', '.35em').text(fmt(r.posts));
     });
   }
@@ -166,7 +233,7 @@
     rows.forEach((r, i) => { const y = i * (bh + gap);
       svg.append('text').attr('class', 'lab').attr('x', left - 8).attr('y', y + bh / 2).attr('dy', '.35em').attr('text-anchor', 'end').text(r.label);
       svg.append('rect').attr('x', left).attr('y', y).attr('width', x(r.posts)).attr('height', bh).attr('rx', 2).attr('fill', C[2])
-        .on('pointermove', (e) => tip.show(e, `${r.label}：${r.posts} 則`)).on('pointerleave', tip.hide);
+        .on('pointermove', (e) => tip.show(e, S.barTip(r.label, r.posts))).on('pointerleave', tip.hide);
       svg.append('text').attr('class', 'val').attr('x', left + x(r.posts) + 4).attr('y', y + bh / 2).attr('dy', '.35em').text(fmt(r.posts)); });
   }
 
@@ -178,23 +245,23 @@
     const t = (x.shen - x.chiang) / tot;   // -1 pro-Chiang .. +1 pro-Shen
     return t >= 0 ? d3.interpolateRgb(mid, C[0])(Math.min(1, t * 1.4)) : d3.interpolateRgb(mid, C[1])(Math.min(1, -t * 1.4));
   }
-  function cloud(el, items, unit, maxShown, scaleFrom, shrink = true) {
+  function cloud(el, items, kind, maxShown, scaleFrom, shrink = true) {
     const rows = items.filter((d) => d[cloudMetric] > 0).sort((a, b) => b[cloudMetric] - a[cloudMetric]).slice(0, maxShown);
-    if (!rows.length) { el.append(mk('p', 'note', '沒有足夠的資料。')); return; }
+    if (!rows.length) { el.append(mk('p', 'note', S.noData)); return; }
     const W = el.clientWidth || 800, H = Math.round(Math.max(240, Math.min(380, W * 0.45)));
     const ext = d3.extent(rows, (d) => d[cloudMetric]);
     const lo = scaleFrom === 'zero' || ext[0] === ext[1] ? 0 : ext[0];
     const fs = d3.scaleSqrt().domain([lo, ext[1]]).range([12, Math.max(28, Math.min(60, W / 10))]);
-    const words = rows.map((d) => ({ ...d, size: Math.round(fs(d[cloudMetric])) }));
+    const words = rows.map((d) => ({ ...d, key: d.text, text: kind === 'word' ? lab(d.text) : d.text, size: Math.round(fs(d[cloudMetric])) }));
     const tot = D.cloud_totals || {};
     const tip = tipFor(el);
     const clickable = !!document.getElementById('posts-body');
-    const pick = (d) => !clickable ? null : unit === '詞' ? setWord(d.text, true)
-      : d.other ? setOther(d.text, true) : setTopic(d.text === active ? null : d.text, true);
-    const msg = (d) => `${d.text}${d.other ? '（其他細項）' : ''}\n${fmt(d.posts)} 則貼文 · ${fmt(d.likes)} 讚\n挺沈 ${d.shen} · 挺蔣 ${d.chiang} · 中立／混合 ${d.neutral}${clickable ? '\n點選以篩選下方貼文' : ''}`;
+    const pick = (d) => !clickable ? null : kind === 'word' ? setWord(d.key, true)
+      : d.other ? setOther(d.key, true) : setTopic(d.key === active ? null : d.key, true);
+    const msg = (d) => S.cloudMsg(kind === 'word' ? labFull(d.key) : d.key, d, clickable);
     if (!(d3.layout && d3.layout.cloud)) {
       const box = mk('div', 'fallback'); el.append(box);
-      words.forEach((d) => { const sp = mk('span', null, d.text); sp.style.fontSize = d.size + 'px'; sp.style.color = leanColor(d);
+      words.forEach((d) => { const sp = mk('span', null, d.text); sp.setAttribute('data-k', d.key); sp.style.fontSize = d.size + 'px'; sp.style.color = leanColor(d);
         sp.style.cursor = 'pointer'; sp.addEventListener('click', () => pick(d)); box.append(sp); });
       markClouds();
       return;
@@ -205,15 +272,15 @@
       .on('end', (placed) => {
         if (placed.length < words.length && tries > 0 && shrink) return layout(scale * 0.85, tries - 1);
         el.querySelectorAll('svg, .note').forEach((n) => n.remove());
-        const svg = svgIn(el, H, unit + '文字雲');
+        const svg = svgIn(el, H, S.cloudAria(kind));
         svg.append('g').attr('transform', `translate(${W / 2},${H / 2})`).selectAll('text').data(placed).join('text')
-          .attr('text-anchor', 'middle').attr('transform', (d) => `translate(${d.x},${d.y})`)
+          .attr('text-anchor', 'middle').attr('data-k', (d) => d.key).attr('transform', (d) => `translate(${d.x},${d.y})`)
           .style('font-size', (d) => d.size + 'px').style('font-family', FONT).style('font-weight', 600)
           .style('fill', (d) => leanColor(d)).style('cursor', clickable ? 'pointer' : 'default').text((d) => d.text)
           .on('pointermove', (e, d) => tip.show(e, msg(d))).on('pointerleave', tip.hide)
           .on('click', (e, d) => { tip.hide(); pick(d); });
         markClouds();
-        if (placed.length < words.length) el.append(mk('p', 'note', `另有 ${words.length - placed.length} 個較小的${unit}因版面不足未顯示。`));
+        if (placed.length < words.length) el.append(mk('p', 'note', S.hidden(words.length - placed.length, kind)));
       }).start();
     layout(1, 4);
   }
@@ -221,16 +288,16 @@
     const c = D.cloud; if (!c) return;
     if (c.excluded_topics && c.excluded_topics.length) {
       const d = document.getElementById('tcloud-desc');
-      if (d) d.textContent = `Claude 標註的議題（不含「${c.excluded_topics.join('」「')}」）。`;
+      if (d) d.textContent = S.tcloudDesc(c.excluded_topics);
     }
     if (c.excluded_words && c.excluded_words.length) {
       const d = document.getElementById('wcloud-desc');
-      if (d) d.textContent = `直接從貼文原文斷詞統計，每則貼文同一個詞只算一次，且至少出現在 2 則貼文中；候選人姓名與「台北」「市長」等幾乎每則都有的詞不列入。`;
+      if (d) d.textContent = S.wcloudDesc;
     }
-    const tItems = cloudExpand ? c.topics.filter((t) => t.text !== '其他').concat(c.others || []) : c.topics;
-    go('tcloud', (el) => cloud(el, tItems, '議題', cloudExpand ? 70 : 30, 'zero', !cloudExpand));
-    go('wcloud', (el) => c.words ? cloud(el, c.words, '詞', el.clientWidth < 600 ? 35 : 60, 'min')
-                                 : el.append(mk('p', 'note', '這一天沒有詞彙資料。')));
+    const tItems = cloudExpand ? c.topics.filter((t) => t.text !== (c.other_key || S.otherKey)).concat(c.others || []) : c.topics;
+    go('tcloud', (el) => cloud(el, tItems, 'topic', cloudExpand ? 70 : 30, 'zero', !cloudExpand));
+    go('wcloud', (el) => c.words ? cloud(el, c.words, 'word', el.clientWidth < 600 ? 35 : 60, 'min')
+                                 : el.append(mk('p', 'note', S.noWords)));
   }
   const ex = document.getElementById('cloud-expand');
   if (ex) ex.addEventListener('change', () => { cloudExpand = ex.checked; drawClouds(); });
@@ -243,26 +310,26 @@
   // ---------- rising words ----------
   function rising(el) {
     const R = D.rising, desc = document.getElementById('rise-desc');
-    if (!R) { el.append(mk('p', 'note', '這是第一天的資料（或尚未安裝斷詞套件），沒有之前的日期可以比較。')); return; }
-    if (desc) desc.textContent = `與之前 ${R.before_days} 天（共 ${fmt(R.before_posts)} 則選舉相關貼文）相比，當日明顯更常出現的詞。`;
+    if (!R) { el.append(mk('p', 'note', S.riseFirst)); return; }
+    if (desc) desc.textContent = S.riseDesc(R.before_days, fmt(R.before_posts));
     const rows = R.words;
-    if (!rows.length) { el.append(mk('p', 'note', '當日沒有明顯升溫的詞。')); return; }
+    if (!rows.length) { el.append(mk('p', 'note', S.riseNone)); return; }
     const pc = (v) => (v * 100).toFixed(1) + '%';
     const W = el.clientWidth, bh = 20, gap = 8, H = rows.length * (bh + gap);
-    const svg = svgIn(el, H, '當日升溫詞');
-    const vals = rows.map((r) => `${pc(r.before_share)} → ${pc(r.today_share)}（${r.today} 則）`);
-    const lw = d3.max(widths(svg, rows.map((r) => r.w))) + 12, rw = d3.max(widths(svg, vals)) + 10;
+    const svg = svgIn(el, H, S.riseAria);
+    const vals = rows.map((r) => S.riseVal(pc(r.before_share), pc(r.today_share), r.today));
+    const lw = d3.max(widths(svg, rows.map((r) => lab(r.w)))) + 12, rw = d3.max(widths(svg, vals)) + 10;
     const x = d3.scaleLinear().domain([0, d3.max(rows, (r) => r.z)]).range([0, Math.max(40, W - lw - rw)]);
     const tip = tipFor(el);
     rows.forEach((r, i) => {
       const y = i * (bh + gap);
-      const msg = `${r.w}\n當日 ${r.today} 則（${pc(r.today_share)}）\n之前 ${r.before} 則（${pc(r.before_share)}）\n當日立場：挺沈 ${r.shen} · 挺蔣 ${r.chiang} · 中立／混合 ${r.neutral}`;
-      svg.append('text').attr('class', 'lab').attr('x', lw - 8).attr('y', y + bh / 2).attr('dy', '.35em').attr('text-anchor', 'end').text(r.w);
+      const msg = S.riseMsg(labFull(r.w), r, pc);
+      svg.append('text').attr('class', 'lab').attr('x', lw - 8).attr('y', y + bh / 2).attr('dy', '.35em').attr('text-anchor', 'end').text(lab(r.w));
       svg.append('rect').attr('x', lw).attr('y', y).attr('width', x(r.z)).attr('height', bh).attr('rx', 2).attr('fill', leanColor(r));
       svg.append('text').attr('class', 'val').attr('x', lw + x(r.z) + 6).attr('y', y + bh / 2).attr('dy', '.35em').text(vals[i]);
       svg.append('rect').attr('x', 0).attr('y', y - gap / 2).attr('width', W).attr('height', bh + gap).attr('fill', 'transparent')
         .style('cursor', 'pointer')
-        .on('pointermove', (e) => tip.show(e, msg + '\n點選以篩選下方貼文')).on('pointerleave', tip.hide)
+        .on('pointermove', (e) => tip.show(e, msg + S.clickBelow)).on('pointerleave', tip.hide)
         .on('click', () => { tip.hide(); setWord(r.w, true); });
     });
   }
@@ -271,8 +338,8 @@
     if (D.cands) go('stance', stance);
     if (D.trend && D.trend.length) go('trend', trend);
     if (D.topics) go('topics', stacked);
-    if (D.post_types) go('ptype', (el) => bars(el, D.post_types, '當日各類型貼文數'));
-    if (D.image_types) go('itype', (el) => bars(el, D.image_types, '當日含各類圖片的貼文數'));
+    if (D.post_types) go('ptype', (el) => bars(el, D.post_types, S.ptypeAria));
+    if (D.image_types) go('itype', (el) => bars(el, D.image_types, S.itypeAria));
     if ('rising' in D) go('rising', rising);
     drawClouds();
   }

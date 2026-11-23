@@ -7,6 +7,8 @@ body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.6 -apple
 a { color: var(--ui); }
 .tp-nav { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 12px; }
 .tp-title { font-family: "Songti TC", "Noto Serif TC", serif; font-weight: 400; font-size: 28px; margin: 0; }
+.tp-lang { text-align: right; font-size: 13px; margin-bottom: 4px; }
+:lang(en) .tp-title, :lang(en) .big { font-family: Georgia, "Times New Roman", "Songti TC", serif; }
 .tp-sub { color: var(--muted); font-size: 13px; }
 .tp-take { font-size: 18px; margin: 16px 0 20px; }
 .tp-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
