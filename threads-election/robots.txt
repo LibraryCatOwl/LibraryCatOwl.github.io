@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://librarycatowl.github.io/threads-election/sitemap.xml
